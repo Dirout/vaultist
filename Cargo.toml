@@ -69,7 +69,7 @@ serde = "1.0.136"
 url = "2.2.2"
 urlencoding = "2.1.0"
 reqwest = { version = "0.11.10", features = ["blocking"] }
-tokio = { version = "1.17.0", features = ["full"] }
+tokio = { version = "1.21.0", features = ["full"] }
 tokio-stream = "0.1.8"
 
 [profile.release]
