@@ -68,7 +68,7 @@ rand_core = { version = "0.6.3", features = ["std", "serde1"] }
 serde = "1.0.136"
 url = "2.2.2"
 urlencoding = "2.1.0"
-reqwest = { version = "0.11.10", features = ["blocking"] }
+reqwest = { version = "0.11.13", features = ["blocking"] }
 tokio = { version = "1.17.0", features = ["full"] }
 tokio-stream = "0.1.8"
 
