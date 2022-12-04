@@ -16,15 +16,64 @@
 #![allow(clippy::needless_doctest_main)]
 
 use argon2::PasswordHasher;
-use chacha20poly1305::aead::{Aead, NewAead};
-use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
-use rand_core::RngCore;
+use chacha20poly1305::aead::{Aead, AeadCore};
+use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
+use derive_more::{Constructor, From, Into};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Into,
+	derive_more::Mul,
+	derive_more::Div,
+	derive_more::Rem,
+	derive_more::Shr,
+	derive_more::Shl,
+	Constructor,
+)]
+/// The key to enter the vault
+pub struct VaultKey {
+	/// The salt applied to the vault's password
+	pub salt: Vec<u8>,
+	/// The key of the vault
+	pub key: String,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Into,
+	derive_more::Mul,
+	derive_more::Div,
+	derive_more::Rem,
+	derive_more::Shr,
+	derive_more::Shl,
+	Constructor,
+)]
+/// An entry within the vault
 pub struct Entry {
+	/// The name of an entry
 	pub name: String,
+	/// The information contained within an entry
 	pub contents: String,
+	/// The ID of the entry
+	pub id: Uuid,
 }
 
 /// Generate the vault's key from a user-supplied password.
@@ -32,14 +81,17 @@ pub struct Entry {
 /// # Arguments
 ///
 /// * `password` - The user-supplied password.
-pub fn generate_key_from_password(password: String) -> String {
+pub fn generate_key_from_password(password: String) -> VaultKey {
 	let salt = argon2::password_hash::SaltString::generate(&mut rand_core::OsRng);
 	let config = argon2::Argon2::default();
 	let key = config
 		.hash_password(password.as_bytes(), &salt)
 		.unwrap()
 		.to_string();
-	return key;
+	return VaultKey {
+		salt: salt.as_bytes().to_owned(),
+		key,
+	};
 }
 
 /// Encrypt an entry into the vault.
@@ -50,12 +102,10 @@ pub fn generate_key_from_password(password: String) -> String {
 ///
 /// * `item` - The entry to encrypt.
 pub fn encrypt_entry(key: String, item: &mut Entry) -> Vec<u8> {
-	let mut nonce_bytes = [0u8; 24];
-	rand_core::OsRng.fill_bytes(&mut nonce_bytes);
-
+	let nonce = XChaCha20Poly1305::generate_nonce(&mut rand_core::OsRng);
 	let serialised: Vec<u8> = bincode::serialize(&item).unwrap();
-	let encrypted_serialised = encrypt_bytes(key, &serialised, &nonce_bytes);
-	return [nonce_bytes.to_vec(), encrypted_serialised].concat();
+	let encrypted_serialised = encrypt_bytes(key, &serialised, &nonce);
+	return [nonce.to_vec(), encrypted_serialised].concat();
 }
 
 /// Decrypt an entry from the vault.
@@ -81,11 +131,10 @@ pub fn decrypt_entry(key: String, encrypted_serialised: Vec<u8>) -> Entry {
 /// * `bytes` - The bytes to encrypt.
 ///
 /// * `nonce_bytes` - The nonce to use.
-pub fn encrypt_bytes(key: String, bytes: &[u8], nonce_bytes: &[u8; 24]) -> Vec<u8> {
+pub fn encrypt_bytes(key: String, bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
 	let enc_key = Key::from_slice(key.as_bytes());
 	let aead = XChaCha20Poly1305::new(enc_key);
-	let nonce = XNonce::from_slice(nonce_bytes);
-	let encrypted = aead.encrypt(nonce, bytes).unwrap();
+	let encrypted = aead.encrypt(&nonce, bytes).unwrap();
 	return encrypted;
 }
 
