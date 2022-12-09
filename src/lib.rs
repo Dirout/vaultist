@@ -40,12 +40,14 @@ use uuid::Uuid;
 	derive_more::Shl,
 	Constructor,
 )]
-/// The key to enter the vault
-pub struct VaultKey {
+/// The main vault file
+pub struct Vault {
 	/// The salt applied to the vault's password
 	pub salt: Vec<u8>,
 	/// The key of the vault
 	pub key: String,
+	/// The entries within the vault
+	pub entries: Vec<Entry>,
 }
 
 #[derive(
@@ -74,6 +76,8 @@ pub struct Entry {
 	pub contents: String,
 	/// The ID of the entry
 	pub id: Uuid,
+	/// The date & time when the entry was last modified
+	pub last_modified: chrono::DateTime<chrono::Utc>,
 }
 
 /// Generate the vault's key from a user-supplied password.
@@ -81,16 +85,17 @@ pub struct Entry {
 /// # Arguments
 ///
 /// * `password` - The user-supplied password.
-pub fn generate_key_from_password(password: String) -> VaultKey {
+pub fn generate_key_from_password(password: String) -> Vault {
 	let salt = argon2::password_hash::SaltString::generate(&mut rand_core::OsRng);
 	let config = argon2::Argon2::default();
 	let key = config
 		.hash_password(password.as_bytes(), &salt)
 		.unwrap()
 		.to_string();
-	return VaultKey {
+	return Vault {
 		salt: salt.as_bytes().to_owned(),
 		key,
+		entries: Vec::new(),
 	};
 }
 
