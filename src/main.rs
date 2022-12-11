@@ -96,7 +96,6 @@ fn main() {
     "
 	)
 	.unwrap();
-
 	match MATCHES.subcommand() {
 		Some(("show", show_matches)) => {
 			show(show_matches);
@@ -134,15 +133,16 @@ fn new_vault(matches: &clap::ArgMatches) {
 	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
-	let path_buf = std::fs::canonicalize(
-		matches
-			.get_one::<PathBuf>("PATH")
-			.ok_or(miette!("❌ No path was given"))
-			.unwrap(),
-	)
-	.unwrap();
-
-	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+	let path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let path_buf = match std::fs::canonicalize(path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
+	};
 
 	let init_attempt_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
@@ -178,6 +178,8 @@ fn new_vault(matches: &clap::ArgMatches) {
 		"❌ Could not create a secure vault with that password."
 	);
 
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
 	// let repo = git2::Repository::init(vault_path).unwrap();
 	// TODO: Write key to file, then commit
 	write_file(
@@ -208,13 +210,16 @@ fn add_entry(matches: &clap::ArgMatches) {
 	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
-	let path_buf = std::fs::canonicalize(
-		matches
-			.get_one::<PathBuf>("PATH")
-			.ok_or(miette!("❌ No path was given"))
-			.unwrap(),
-	)
-	.unwrap();
+	let path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let path_buf = match std::fs::canonicalize(path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
+	};
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
@@ -236,10 +241,10 @@ fn add_entry(matches: &clap::ArgMatches) {
 		"❌ Could not access vault with that password."
 	);
 
-	writeln!(buf_out, "❓ Provide a name for your new secret: ");
+	writeln!(buf_out, "❓ Provide a name for your new secret: ").unwrap();
 	let mut entry_name = String::new();
-	buf_in.read_line(&mut entry_name);
-	writeln!(buf_out, "📝 Provide the value of \'{}\' … ", entry_name);
+	buf_in.read_line(&mut entry_name).unwrap();
+	writeln!(buf_out, "📝 Provide the value of \'{}\' … ", entry_name).unwrap();
 	let entry_contents = edit::edit("").unwrap();
 	let mut new_entry = keywi::Entry {
 		name: entry_name,
@@ -300,13 +305,16 @@ fn see_entry(matches: &clap::ArgMatches) {
 	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
-	let path_buf = std::fs::canonicalize(
-		matches
-			.get_one::<PathBuf>("PATH")
-			.ok_or(miette!("❌ No path was given"))
-			.unwrap(),
-	)
-	.unwrap();
+	let path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let path_buf = match std::fs::canonicalize(path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
+	};
 
 	let deserialised_vault: keywi::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
@@ -332,15 +340,18 @@ fn see_entry(matches: &clap::ArgMatches) {
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
 	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
 	let schema = schema_builder.build();
-	let index =
-		Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema.clone()).unwrap();
+	let index = Index::open_or_create(
+		MmapDirectory::open(path_buf.clone()).unwrap(),
+		schema.clone(),
+	)
+	.unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
 
-	writeln!(buf_out, "❓ Search for the secret you're trying to view: ");
+	writeln!(buf_out, "❓ Search for the secret you're trying to view: ").unwrap();
 	let mut entry_query = String::new();
-	buf_in.read_line(&mut entry_query);
+	buf_in.read_line(&mut entry_query).unwrap();
 	let query = query_parser.parse_query(&entry_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
 		.search(
@@ -349,32 +360,32 @@ fn see_entry(matches: &clap::ArgMatches) {
 		)
 		.unwrap();
 
-	let result_options: HashMap<String, Uuid> = HashMap::new();
+	let mut result_options: HashMap<String, Uuid> = HashMap::new();
 	let mut i = 1;
 	for (_score, doc_address) in results {
 		let retrieved_doc = searcher.doc(doc_address).unwrap();
 		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
+		let retrieved_date: chrono::DateTime<chrono::Utc> = chrono::DateTime::from_utc(
+			chrono::NaiveDateTime::from_timestamp_opt(
+				retrieved_doc
+					.get_first(last_modified)
+					.unwrap()
+					.as_date()
+					.unwrap()
+					.into_utc()
+					.unix_timestamp(),
+				0,
+			)
+			.unwrap(),
+			chrono::Utc,
+		);
 		result_options.insert(
 			format!(
 				"{}. {} ({}; {})",
 				i.to_string(),
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
-				chrono::DateTime::from_utc(
-					chrono::NaiveDateTime::from_timestamp_opt(
-						retrieved_doc
-							.get_first(last_modified)
-							.unwrap()
-							.as_date()
-							.unwrap()
-							.into_utc()
-							.unix_timestamp(),
-						0
-					)
-					.unwrap(),
-					chrono::Utc
-				)
-				.to_rfc2822()
+				retrieved_date.to_rfc2822()
 			),
 			Uuid::parse_str(retrieved_id).unwrap(),
 		);
@@ -406,7 +417,8 @@ fn see_entry(matches: &clap::ArgMatches) {
 				None
 			}
 		})
-		.collect();
+		.last()
+		.unwrap();
 
 	// let matching_files = glob::glob(
 	// 	&(path_buf.to_str().unwrap().to_owned() + &format!("/**/*{}*.keywi", entry_name)),
@@ -446,10 +458,18 @@ fn see_entry(matches: &clap::ArgMatches) {
 	// };
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
-	let encrypted_entry = read_file(path_buf.join(filenamify(
-		entry_name + &chrono::offset::Utc::now().to_rfc3339() + ".keywi",
-	)));
+	let encrypted_entry =
+		read_file(path_buf.join(filenamify(selected_entry.id.to_string() + ".keywi")));
 	let decrypted_entry = keywi::decrypt_entry(deserialised_vault.key, encrypted_entry);
+	writeln!(
+		buf_out,
+		"{} ({})\n\n{}\n\nLast modified: {}",
+		decrypted_entry.name,
+		decrypted_entry.id.to_string(),
+		decrypted_entry.contents,
+		decrypted_entry.last_modified.to_rfc2822()
+	)
+	.unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -474,13 +494,16 @@ fn change_entry(matches: &clap::ArgMatches) {
 	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
-	let path_buf = std::fs::canonicalize(
-		matches
-			.get_one::<PathBuf>("PATH")
-			.ok_or(miette!("❌ No path was given"))
-			.unwrap(),
-	)
-	.unwrap();
+	let path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let path_buf = match std::fs::canonicalize(path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
+	};
 
 	let deserialised_vault: keywi::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
@@ -500,71 +523,116 @@ fn change_entry(matches: &clap::ArgMatches) {
 		"❌ Could not access vault with that password."
 	);
 
+	let mut schema_builder = Schema::builder();
+	let name = schema_builder.add_text_field("title", TEXT | STORED);
+	let contents = schema_builder.add_text_field("body", TEXT);
+	let id = schema_builder.add_text_field("id", TEXT | STORED);
+	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
+	let schema = schema_builder.build();
+	let index = Index::open_or_create(
+		MmapDirectory::open(path_buf.clone()).unwrap(),
+		schema.clone(),
+	)
+	.unwrap();
+	let reader = index.reader().unwrap();
+	let searcher = reader.searcher();
+	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
+
 	writeln!(
 		buf_out,
-		"❓ Provide the name of the secret you're trying to modify: "
-	);
-	let mut entry_name = String::new();
-	buf_in.read_line(&mut entry_name);
-	let matching_files = glob::glob(
-		&(path_buf.to_str().unwrap().to_owned() + &format!("/**/*{}*.keywi", entry_name)),
+		"❓ Search for the secret you're trying to modify: "
 	)
-	.unwrap()
-	.filter_map(Result::ok);
-	let matching_files_count = matching_files.count();
-	let entry_file_name = if matching_files_count == 1 {
-		matching_files.last().unwrap()
-	} else {
-		writeln!(
-			buf_out,
-			"❓ Select (by number) the secret you're trying to modify: "
-		);
-		let i: i32 = 0;
-		for entry_file in matching_files {
-			let entry_file_metadata = std::fs::metadata(entry_file).unwrap();
-			let entry_file_modified = if entry_file_metadata.modified().is_ok() {
-				let entry_file_modified_datetime: chrono::DateTime<chrono::Utc> =
-					chrono::DateTime::from(entry_file_metadata.modified().unwrap());
-				format!(
-					"\t(last modified: {})",
-					entry_file_modified_datetime.to_rfc2822()
-				)
-			} else {
-				String::new()
-			};
-			write!(
-				buf_out,
-				"\t{}. \'{}\'{}",
-				i,
-				entry_file.file_stem().unwrap().to_str().unwrap(),
-				entry_file_modified
-			);
-			i += 1;
-		}
-		let mut entry_num = String::new();
-		buf_in.read_line(&mut entry_num);
-		matching_files.nth(str::parse(&entry_num).unwrap()).unwrap()
-	};
+	.unwrap();
+	let mut entry_query = String::new();
+	buf_in.read_line(&mut entry_query).unwrap();
+	let query = query_parser.parse_query(&entry_query).unwrap();
+	let results: Vec<(Score, DocAddress)> = searcher
+		.search(
+			&query,
+			&TopDocs::with_limit(deserialised_vault.entries.len()),
+		)
+		.unwrap();
 
-	let encrypted_entry = read_file(path_buf.join(filenamify(
-		entry_name + &chrono::offset::Utc::now().to_rfc3339() + ".keywi",
-	)));
-	let decrypted_entry = keywi::decrypt_entry(deserialised_vault.key, encrypted_entry);
+	let mut result_options: HashMap<String, Uuid> = HashMap::new();
+	let mut i = 1;
+	for (_score, doc_address) in results {
+		let retrieved_doc = searcher.doc(doc_address).unwrap();
+		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
+		let retrieved_date: chrono::DateTime<chrono::Utc> = chrono::DateTime::from_utc(
+			chrono::NaiveDateTime::from_timestamp_opt(
+				retrieved_doc
+					.get_first(last_modified)
+					.unwrap()
+					.as_date()
+					.unwrap()
+					.into_utc()
+					.unix_timestamp(),
+				0,
+			)
+			.unwrap(),
+			chrono::Utc,
+		);
+		result_options.insert(
+			format!(
+				"{}. {} ({}; {})",
+				i.to_string(),
+				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
+				retrieved_id,
+				retrieved_date.to_rfc2822()
+			),
+			Uuid::parse_str(retrieved_id).unwrap(),
+		);
+		i += 1;
+	}
+
+	// writeln!(
+	// 	buf_out,
+	// 	"❓ Select (by number) the secret you're trying to modify: "
+	// );
+
+	let result_options_keys: Vec<&String> = result_options.keys().collect();
+	let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
+		.items(&result_options_keys)
+		.with_prompt("❓ Select the secret you're trying to modify: ")
+		.report(true)
+		.highlight_matches(true)
+		.interact_on_opt(&Term::buffered_stderr())
+		.unwrap()
+		.unwrap();
+
+	let selected_entry = deserialised_vault
+		.entries
+		.iter()
+		.filter_map(|val| {
+			if val.id == *result_options.values().nth(selection).unwrap() {
+				Some(val)
+			} else {
+				None
+			}
+		})
+		.last()
+		.unwrap();
+
+	let encrypted_entry =
+		read_file(path_buf.join(filenamify(selected_entry.id.to_string() + ".keywi")));
+	let decrypted_entry = keywi::decrypt_entry(deserialised_vault.clone().key, encrypted_entry);
 
 	writeln!(
 		buf_out,
 		"📝 Provide the new name of \'{}\' … ",
 		decrypted_entry.name
-	);
-	let new_entry_name = edit::edit(decrypted_entry.name).unwrap();
+	)
+	.unwrap();
+	let new_entry_name = edit::edit(decrypted_entry.clone().name).unwrap();
 
 	writeln!(
 		buf_out,
 		"📝 Provide the new contents of \'{}\' … ",
 		decrypted_entry.name
-	);
+	)
+	.unwrap();
 	let new_entry_contents = edit::edit(decrypted_entry.contents).unwrap();
-	let new_entry = keywi::Entry {
+	let mut new_entry = keywi::Entry {
 		name: new_entry_name,
 		contents: new_entry_contents,
 		id: decrypted_entry.id,
@@ -574,9 +642,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	write_file(
-		path_buf.join(filenamify(
-			new_entry.name + "." + &new_entry.id.to_string() + ".keywi",
-		)),
+		path_buf.join(filenamify(new_entry.id.to_string() + ".keywi")),
 		&keywi::encrypt_entry(deserialised_vault.key, &mut new_entry),
 	);
 
@@ -603,13 +669,16 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
-	let path_buf = std::fs::canonicalize(
-		matches
-			.get_one::<PathBuf>("PATH")
-			.ok_or(miette!("❌ No path was given"))
-			.unwrap(),
-	)
-	.unwrap();
+	let path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let path_buf = match std::fs::canonicalize(path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
+	};
 
 	let deserialised_vault: keywi::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
@@ -629,51 +698,95 @@ fn remove_entry(matches: &clap::ArgMatches) {
 		"❌ Could not access vault with that password."
 	);
 
+	let mut schema_builder = Schema::builder();
+	let name = schema_builder.add_text_field("title", TEXT | STORED);
+	let contents = schema_builder.add_text_field("body", TEXT);
+	let id = schema_builder.add_text_field("id", TEXT | STORED);
+	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
+	let schema = schema_builder.build();
+	let index = Index::open_or_create(
+		MmapDirectory::open(path_buf.clone()).unwrap(),
+		schema.clone(),
+	)
+	.unwrap();
+	let reader = index.reader().unwrap();
+	let searcher = reader.searcher();
+	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
+
 	writeln!(
 		buf_out,
-		"❓ Provide the name of the secret you're trying to view: "
-	);
-	let mut entry_name = String::new();
-	buf_in.read_line(&mut entry_name);
-	let matching_files = glob::glob(
-		&(path_buf.to_str().unwrap().to_owned() + &format!("/**/*{}*.keywi", entry_name)),
+		"❓ Search for the secret you're trying to modify: "
 	)
-	.unwrap()
-	.filter_map(Result::ok);
-	let matching_files_count = matching_files.count();
-	let entry_file_name = if matching_files_count == 1 {
-		matching_files.last().unwrap()
-	} else {
-		writeln!(
-			buf_out,
-			"❓ Select (by number) the secret you're trying to view: "
+	.unwrap();
+	let mut entry_query = String::new();
+	buf_in.read_line(&mut entry_query).unwrap();
+	let query = query_parser.parse_query(&entry_query).unwrap();
+	let results: Vec<(Score, DocAddress)> = searcher
+		.search(
+			&query,
+			&TopDocs::with_limit(deserialised_vault.entries.len()),
+		)
+		.unwrap();
+
+	let mut result_options: HashMap<String, Uuid> = HashMap::new();
+	let mut i = 1;
+	for (_score, doc_address) in results {
+		let retrieved_doc = searcher.doc(doc_address).unwrap();
+		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
+		let retrieved_date: chrono::DateTime<chrono::Utc> = chrono::DateTime::from_utc(
+			chrono::NaiveDateTime::from_timestamp_opt(
+				retrieved_doc
+					.get_first(last_modified)
+					.unwrap()
+					.as_date()
+					.unwrap()
+					.into_utc()
+					.unix_timestamp(),
+				0,
+			)
+			.unwrap(),
+			chrono::Utc,
 		);
-		let i: i32 = 0;
-		for entry_file in matching_files {
-			let entry_file_metadata = std::fs::metadata(entry_file).unwrap();
-			let entry_file_modified = if entry_file_metadata.modified().is_ok() {
-				let entry_file_modified_datetime: chrono::DateTime<chrono::Utc> =
-					chrono::DateTime::from(entry_file_metadata.modified().unwrap());
-				format!(
-					"\t(last modified: {})",
-					entry_file_modified_datetime.to_rfc2822()
-				)
+		result_options.insert(
+			format!(
+				"{}. {} ({}; {})",
+				i.to_string(),
+				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
+				retrieved_id,
+				retrieved_date.to_rfc2822()
+			),
+			Uuid::parse_str(retrieved_id).unwrap(),
+		);
+		i += 1;
+	}
+
+	// writeln!(
+	// 	buf_out,
+	// 	"❓ Select (by number) the secret you're trying to modify: "
+	// );
+
+	let result_options_keys: Vec<&String> = result_options.keys().collect();
+	let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
+		.items(&result_options_keys)
+		.with_prompt("❓ Select the secret you're trying to modify: ")
+		.report(true)
+		.highlight_matches(true)
+		.interact_on_opt(&Term::buffered_stderr())
+		.unwrap()
+		.unwrap();
+
+	let selected_entry = deserialised_vault
+		.entries
+		.iter()
+		.filter_map(|val| {
+			if val.id == *result_options.values().nth(selection).unwrap() {
+				Some(val)
 			} else {
-				String::new()
-			};
-			write!(
-				buf_out,
-				"\t{}. \'{}\'{}",
-				i,
-				entry_file.file_stem().unwrap().to_str().unwrap(),
-				entry_file_modified
-			);
-			i += 1;
-		}
-		let mut entry_num = String::new();
-		buf_in.read_line(&mut entry_num);
-		matching_files.nth(str::parse(&entry_num).unwrap()).unwrap()
-	};
+				None
+			}
+		})
+		.last()
+		.unwrap();
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 										// TODO: Remove
@@ -700,7 +813,7 @@ fn write_file(path: PathBuf, bytes_to_write: &[u8]) {
 	fs::create_dir_all(path.parent().unwrap()).unwrap(); // Create output path, write to file
 	let file = File::create(path).unwrap(); // Create file which we will write to
 	let mut buffered_writer = BufWriter::new(file); // Create a buffered writer, allowing us to modify the file we've just created
-	buffered_writer.write_all(&bytes_to_write); // Write bytes to file
+	buffered_writer.write_all(&bytes_to_write).unwrap(); // Write bytes to file
 	buffered_writer.flush().unwrap(); // Empty out the data in memory after we've written to the file
 }
 
@@ -714,7 +827,7 @@ fn read_file(path: PathBuf) -> Vec<u8> {
 	let file = File::open(path).unwrap(); // Open file which we will read from
 	let mut buffer: Vec<u8> = Vec::new();
 	let mut buffered_reader = BufReader::new(file); // Create a buffered reader, allowing us to read the file we've just opened
-	buffered_reader.read_to_end(&mut buffer); // Write bytes that were read into buffer
+	buffered_reader.read_to_end(&mut buffer).unwrap(); // Write bytes that were read into buffer
 	return buffer;
 }
 
