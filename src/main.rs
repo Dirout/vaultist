@@ -21,6 +21,8 @@
 	html_favicon_url = "https://github.com/Dirout/keywi/raw/master/branding/icon.png"
 )]
 #![feature(panic_info_message)]
+#![feature(drain_filter)]
+#![feature(exclusive_range_pattern)]
 
 use argon2::{PasswordHash, PasswordVerifier};
 use clap::{arg, crate_version, value_parser, ArgMatches, Command};
@@ -31,6 +33,7 @@ use filenamify::filenamify;
 use lazy_static::lazy_static;
 use miette::miette;
 use mimalloc::MiMalloc;
+use passwords::{analyzer, scorer, PasswordGenerator};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -53,19 +56,36 @@ lazy_static! {
 	static ref MATCHES: ArgMatches = Command::new("Keywi")
 	.version(crate_version!())
 	.author("Emil Sayahi")
-	.about("Keywi is a Mokk (Macro Output Key Kit) implementation written in Rust.")
+	.about("Keywi is a tool to store your secrets in a vault, able to be opened by one password as the key.")
 	.subcommand(Command::new("show")
 		.about("Shows information regarding the usage and handling of this software")
 		.arg(arg!(-w --warranty "Prints warranty information"))
 		.arg(arg!(-c --conditions "Prints conditions information")))
-	.subcommand(Command::new("new").about("Outputs a Mokk")
-		.arg(arg!(PATH: "Path to a Mokk").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("add").about("Outputs a Mokk")
-		.arg(arg!(PATH: "Path to a Mokk").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("see").about("Outputs a Mokk")
-		.arg(arg!(PATH: "Path to a Mokk").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("remove").about("Outputs a Mokk")
-		.arg(arg!(PATH: "Path to a Mokk").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("new").about("Create a new vault using a user-supplied password.")
+		.arg(arg!(PATH: "Where to store the vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("add").about("Adds a new entry to a vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("see").about("View an entry in the vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("change").about("Modify an entry in the vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("remove").about("Removes an entry in the vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("deduplicate").about("Removes all duplicate entries in the vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(-n --ignore_names "Whether or not to ignore common names in addition to common contents when deduplicating").required(false).default_value("true").value_parser(value_parser!(bool))))
+	.subcommand(Command::new("generate").about("Generates at least one password")
+		.arg(arg!(-c --count "The number of passwords to generate").required(false).default_value("1").allow_negative_numbers(false).value_parser(value_parser!(usize)))
+		.arg(arg!(-l --length "The length of the generated passwords").required(false).default_value("8").allow_negative_numbers(false).value_parser(value_parser!(usize)))
+		.arg(arg!(-n --numbers "Passwords are allowed to, or must if `strict` is true, contain at least one number").required(false).default_value("true").value_parser(value_parser!(bool)))
+		.arg(arg!(-o --lowercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter").default_value("true").required(false).value_parser(value_parser!(bool)))
+		.arg(arg!(-u --uppercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter").default_value("true").required(false).value_parser(value_parser!(bool)))
+		.arg(arg!(-m --symbols "Passwords are allowed to, or must if `strict` is true, contain at least one special character").required(false).default_value("true").value_parser(value_parser!(bool)))
+		.arg(arg!(-s --spaces "Passwords are allowed to, or must if `strict` is true, contain at least one space").required(false).default_value("false").value_parser(value_parser!(bool)))
+		.arg(arg!(-e --exclude_similar_characters "Whether or not to exclude similar looking ASCII characters (iI1loO0\"'`|)").required(false).default_value("false").value_parser(value_parser!(bool)))
+		.arg(arg!(-t --strict "Whether or not the password rules are strictly followed for each generated password").required(false).default_value("false").value_parser(value_parser!(bool))))
+	.subcommand(Command::new("analyse").about("Analyses a password")
+		.arg(arg!(-p --password "The password to be analysed").required(false).value_parser(value_parser!(String))))
 	.get_matches_from(wild::args());
 }
 
@@ -76,13 +96,17 @@ fn main() {
 	let mut buf_out = BufWriter::new(lock);
 
 	std::panic::set_hook(Box::new(|e| {
-		miette!(
-			"{}\nDefined in: {}:{}:{}",
-			format!("{}", e.message().unwrap())
-				.replace("called `Result::unwrap()` on an `Err` value", "Error"),
-			e.location().unwrap().file(),
-			e.location().unwrap().line(),
-			e.location().unwrap().column()
+		println!(
+			"{}",
+			miette!(
+				"{}\nDefined in: {}:{}:{}",
+				format!("{}", e.message().unwrap())
+					.replace("called `Result::unwrap()` on an `Err` value", "Error"),
+				e.location().unwrap().file(),
+				e.location().unwrap().line(),
+				e.location().unwrap().column()
+			)
+			.to_string()
 		);
 	}));
 
@@ -115,6 +139,15 @@ fn main() {
 		Some(("remove", remove_matches)) => {
 			remove_entry(remove_matches);
 		}
+		Some(("deduplicate", deduplicate_matches)) => {
+			deduplicate_entries(deduplicate_matches);
+		}
+		Some(("generate", generate_matches)) => {
+			generate_passwords(generate_matches);
+		}
+		Some(("analyse", analyse_matches)) => {
+			analyse_password(analyse_matches);
+		}
 		None => writeln!(buf_out, "Keywi {}", crate_version!()).unwrap(),
 		_ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
 	}
@@ -124,7 +157,7 @@ fn main() {
 ///
 /// # Arguments
 ///
-/// * `PATH` - Where to store the vault in the filesystem (required)
+/// * `PATH` - Where to store the vault in the filesystem (required).
 fn new_vault(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
@@ -201,7 +234,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 ///
 /// # Arguments
 ///
-/// * `PATH` - Path to a vault in the filesystem (required)
+/// * `PATH` - Path to a vault in the filesystem (required).
 fn add_entry(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
@@ -257,7 +290,7 @@ fn add_entry(matches: &clap::ArgMatches) {
 		&keywi::encrypt_entry(deserialised_vault.clone().key, &mut new_entry),
 	);
 
-	deserialised_vault.entries.push(new_entry.clone());
+	deserialised_vault.add_entry(new_entry.clone());
 	write_file(
 		path_buf.join(".keywi-vault"),
 		&bincode::serialize(&deserialised_vault).unwrap(),
@@ -296,7 +329,7 @@ fn add_entry(matches: &clap::ArgMatches) {
 ///
 /// # Arguments
 ///
-/// * `PATH` - Path to a vault in the filesystem (required)
+/// * `PATH` - Path to a vault in the filesystem (required).
 fn see_entry(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
@@ -485,7 +518,7 @@ fn see_entry(matches: &clap::ArgMatches) {
 ///
 /// # Arguments
 ///
-/// * `PATH` - Path to a vault in the filesystem (required)
+/// * `PATH` - Path to a vault in the filesystem (required).
 fn change_entry(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
@@ -680,7 +713,7 @@ fn remove_entry(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let deserialised_vault: keywi::Vault =
+	let mut deserialised_vault: keywi::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
@@ -775,8 +808,8 @@ fn remove_entry(matches: &clap::ArgMatches) {
 		.unwrap()
 		.unwrap();
 
-	let selected_entry = deserialised_vault
-		.entries
+	let copy_of_entries = deserialised_vault.entries.clone();
+	let selected_entry = copy_of_entries
 		.iter()
 		.filter_map(|val| {
 			if val.id == *result_options.values().nth(selection).unwrap() {
@@ -789,13 +822,231 @@ fn remove_entry(matches: &clap::ArgMatches) {
 		.unwrap();
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
-										// TODO: Remove
+
+	deserialised_vault.remove_entry(selected_entry);
+	std::fs::remove_file(path_buf.join(filenamify(selected_entry.id.to_string() + ".keywi")))
+		.unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
 	writeln!(
 		buf_out,
 		"⏰ Removed vault entry in {} seconds.",
+		(timer.elapsed_ms() as f32 / 1000.0)
+	)
+	.unwrap();
+}
+
+/// Removes all duplicate entries in the vault.
+///
+/// # Arguments
+///
+/// * `PATH` - Path to a vault in the filesystem (required)
+///
+/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
+fn deduplicate_entries(matches: &clap::ArgMatches) {
+	let stdin = std::io::stdin();
+	let stdout = std::io::stdout();
+	let stdin_lock = stdin.lock();
+	let stdout_lock = stdout.lock();
+	let mut buf_in = BufReader::new(stdin_lock);
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let ignore_names = match matches.get_one::<bool>("ignore_names") {
+		Some(b) => *b,
+		None => true,
+	};
+
+	let path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let path_buf = match std::fs::canonicalize(path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
+	};
+
+	let mut deserialised_vault: keywi::Vault =
+		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
+	let verify_password = rpassword::prompt_password_from_bufread(
+		&mut buf_in,
+		&mut buf_out,
+		"🔑 Enter your vault password: ",
+	)
+	.unwrap();
+	assert!(
+		argon2::Argon2::default()
+			.verify_password(
+				verify_password.as_bytes(),
+				&PasswordHash::new(&deserialised_vault.key).unwrap()
+			)
+			.is_ok(),
+		"❌ Could not access vault with that password."
+	);
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let duplicate_entries = deserialised_vault.deduplicate_entries(ignore_names);
+	for entry in duplicate_entries {
+		std::fs::remove_file(path_buf.join(filenamify(entry.id.to_string() + ".keywi"))).unwrap();
+	}
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"⏰ Removed duplicate vault entries in {} seconds.",
+		(timer.elapsed_ms() as f32 / 1000.0)
+	)
+	.unwrap();
+}
+
+/// Generates at least one password.
+///
+/// # Arguments
+///
+/// * `count` - The number of passwords to generate (default: 1).
+///
+/// * `length` - The length of the generated passwords (default: 8).
+///
+/// * `numbers` - Passwords are allowed to, or must if `strict` is true, contain at least one number (default: true).
+///
+/// * `lowercase_letters` - Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter (default: true).
+///
+/// * `uppercase_letters` - Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter (default: true).
+///
+/// * `symbols` - Passwords are allowed to, or must if `strict` is true, contain at least one special character (default: true).
+///
+/// * `spaces` - Passwords are allowed to, or must if `strict` is true, contain at least one space (default: false).
+///
+/// * `exclude_similar_characters` - Whether or not to exclude similar looking ASCII characters (``iI1loO0"'`|``; default: false).
+///
+/// * `strict` - Whether or not the password rules are strictly followed for each generated password (default: true).
+fn generate_passwords(matches: &clap::ArgMatches) {
+	let stdout = std::io::stdout();
+	let stdout_lock = stdout.lock();
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let count = match matches.get_one::<usize>("count") {
+		Some(s) => *s,
+		None => 1,
+	};
+
+	let length = match matches.get_one::<usize>("count") {
+		Some(s) => *s,
+		None => 8,
+	};
+
+	let numbers = match matches.get_one::<bool>("numbers") {
+		Some(b) => *b,
+		None => true,
+	};
+
+	let lowercase_letters = match matches.get_one::<bool>("lowercase_letters") {
+		Some(b) => *b,
+		None => true,
+	};
+
+	let uppercase_letters = match matches.get_one::<bool>("uppercase_letters") {
+		Some(b) => *b,
+		None => true,
+	};
+
+	let symbols = match matches.get_one::<bool>("symbols") {
+		Some(b) => *b,
+		None => true,
+	};
+
+	let spaces = match matches.get_one::<bool>("spaces") {
+		Some(b) => *b,
+		None => false,
+	};
+
+	let exclude_similar_characters = match matches.get_one::<bool>("exclude_similar_characters") {
+		Some(b) => *b,
+		None => false,
+	};
+
+	let strict = match matches.get_one::<bool>("strict") {
+		Some(b) => *b,
+		None => true,
+	};
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let pg = PasswordGenerator {
+		length,
+		numbers,
+		lowercase_letters,
+		uppercase_letters,
+		symbols,
+		spaces,
+		exclude_similar_characters,
+		strict,
+	};
+
+	writeln!(buf_out, "{:#?}", pg.generate(count).unwrap()).unwrap();
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"⏰ Generated password in {} seconds.",
+		(timer.elapsed_ms() as f32 / 1000.0)
+	)
+	.unwrap();
+}
+
+/// Analyses a password.
+///
+/// # Arguments
+///
+/// * `password` - The password to be analysed.
+fn analyse_password(matches: &clap::ArgMatches) {
+	let stdin = std::io::stdin();
+	let stdout = std::io::stdout();
+	let stdin_lock = stdin.lock();
+	let stdout_lock = stdout.lock();
+	let mut buf_in = BufReader::new(stdin_lock);
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let password_match = matches.get_one::<String>("password");
+	let password = match password_match {
+		Some(p) => p.to_owned(),
+		None => rpassword::prompt_password_from_bufread(
+			&mut buf_in,
+			&mut buf_out,
+			"🔑 Enter a password to analyse: ",
+		)
+		.unwrap(),
+	};
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let analysed_password = analyzer::analyze(&password);
+	let score = scorer::score(&analysed_password);
+	let score_string = match Some(score.trunc() as usize) {
+		Some(_x @ 0..20) => "very vulnerable",
+		Some(_x @ 20..40) => "vulnerable",
+		Some(_x @ 40..60) => "very weak",
+		Some(_x @ 60..80) => "weak",
+		Some(_x @ 80..90) => "good",
+		Some(_x @ 90..95) => "strong",
+		Some(_x @ 95..99) => "very strong",
+		Some(_x @ 99..100) => "ideal",
+		Some(_) => "error during scoring",
+		None => "error during scoring",
+	};
+
+	writeln!(buf_out, "Score: {} ({})\nIs Common?: {}\nLength: {}\nNumber of lowercase characters: {}\nNumber of uppercase characters: {}\nNumber of numbers: {}\nNumber of symbols: {}\nNumber of other characters: {}\nNumber of spaces: {}\nNumber of non-consecutively repeated characters: {}\nNumber of consecutively repeated characters: {}\nNumber of characters in progressive sequences with at least a length of three: {}", score, score_string, analyzer::is_common_password(password), analysed_password.length(), analysed_password.lowercase_letters_count(), analysed_password.uppercase_letters_count(), analysed_password.numbers_count(), analysed_password.symbols_count(), analysed_password.other_characters_count(), analysed_password.spaces_count(), analysed_password.non_consecutive_count(), analysed_password.consecutive_count(), analysed_password.progressive_count()).unwrap();
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"⏰ Analysed password in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();

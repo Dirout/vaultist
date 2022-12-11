@@ -14,6 +14,8 @@
 
 #![cfg_attr(feature = "dox", feature(doc_cfg))]
 #![allow(clippy::needless_doctest_main)]
+#![feature(drain_filter)]
+#![feature(slice_partition_dedup)]
 
 use argon2::PasswordHasher;
 use chacha20poly1305::aead::{Aead, AeadCore};
@@ -158,4 +160,45 @@ pub fn decrypt_bytes(key: String, bytes: &[u8], nonce_bytes: &[u8; 24]) -> Vec<u
 	let nonce = XNonce::from_slice(nonce_bytes);
 	let decrypted = aead.decrypt(&nonce, bytes).unwrap();
 	return decrypted;
+}
+
+impl Vault {
+	/// Sorts entries by their last modified date & time, and then deduplicates entries which have contents (and, optionally, names) in common.
+	///
+	/// # Arguments
+	///
+	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
+	pub fn deduplicate_entries(&mut self, ignore_names: bool) -> &mut [Entry] {
+		self.entries.sort_by_cached_key(|x| x.last_modified);
+		match ignore_names {
+			true => {
+				self.entries
+					.partition_dedup_by(|a, b| a.contents == b.contents)
+					.1
+			}
+			false => {
+				self.entries
+					.partition_dedup_by(|a, b| a.name == b.name && a.contents == b.contents)
+					.1
+			}
+		}
+	}
+
+	/// Adds an entry into a vault.
+	///
+	/// # Arguments
+	///
+	/// * `item` - The entry to be added.
+	pub fn add_entry(&mut self, item: Entry) {
+		self.entries.push(item);
+	}
+
+	/// Remove an entry from a vault.
+	///
+	/// # Arguments
+	///
+	/// * `item` - The entry to be removed.
+	pub fn remove_entry(&mut self, item: &Entry) {
+		self.entries = self.entries.drain_filter(|x| x.id == item.id).collect();
+	}
 }

@@ -73,6 +73,7 @@ mimalloc = { version = "0.1.32", default-features = false }
 notify = "5.0.0"
 notify-rust = { version = "4.6.0", features = ["images", "z"], default-features = false }
 pango = "0.16.5"
+passwords = { version = "3.1.12", features = ["crypto", "common-password"] }
 path-clean = "0.1.0"
 rand_core = { version = "0.6.4", features = ["std", "serde1"] }
 rpassword = "7.2.0"
@@ -81,7 +82,7 @@ stopwatch = "0.0.7"
 tantivy = { version = "0.18.1", features = ["mmap", "lz4-compression"] }
 url = "2.3.1"
 urlencoding = "2.1.2"
-uuid = { version = "1.2.2", features = ["serde", "fast-rng", "v4", "macro-diagnostics"] }
+uuid = { version = "1.2.2", features = ["serde", "fast-rng", "v7", "macro-diagnostics"] }
 reqwest = { version = "0.11.13", features = ["blocking"] }
 tokio = { version = "1.23.0", features = ["full"] }
 tokio-stream = "0.1.11"
