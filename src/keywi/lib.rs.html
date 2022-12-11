@@ -345,7 +345,7 @@
 </span><span class="kw">pub fn </span>encrypt_bytes(key: String, bytes: <span class="kw-2">&amp;</span>[u8], nonce: <span class="kw-2">&amp;</span>XNonce) -&gt; Vec&lt;u8&gt; {
 	<span class="kw">let </span>enc_key = Key::from_slice(key.as_bytes());
 	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
-	
+
 	aead.encrypt(nonce, bytes).unwrap()
 }
 
@@ -362,7 +362,7 @@
 	<span class="kw">let </span>enc_key = Key::from_slice(key.as_bytes());
 	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
 	<span class="kw">let </span>nonce = XNonce::from_slice(nonce_bytes);
-	
+
 	aead.decrypt(nonce, bytes).unwrap()
 }
 
