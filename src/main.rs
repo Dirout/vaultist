@@ -224,7 +224,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"⏰ Created new vault in {} seconds.",
+		"\n⏰ Created new vault in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
@@ -319,7 +319,7 @@ fn add_entry(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"⏰ Added new entry to vault in {} seconds.",
+		"\n⏰ Added new entry to vault in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
@@ -508,7 +508,7 @@ fn see_entry(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"⏰ Decrypted vault entry in {} seconds.",
+		"\n⏰ Decrypted vault entry in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
@@ -683,7 +683,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"⏰ Updated vault entry in {} seconds.",
+		"\n⏰ Updated vault entry in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
@@ -831,7 +831,7 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"⏰ Removed vault entry in {} seconds.",
+		"\n⏰ Removed vault entry in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
@@ -897,7 +897,7 @@ fn deduplicate_entries(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"⏰ Removed duplicate vault entries in {} seconds.",
+		"\n⏰ Removed duplicate vault entries in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
@@ -934,7 +934,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 		None => 1,
 	};
 
-	let length = match matches.get_one::<usize>("count") {
+	let length = match matches.get_one::<usize>("length") {
 		Some(s) => *s,
 		None => 8,
 	};
@@ -987,13 +987,16 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 		strict,
 	};
 
-	writeln!(buf_out, "{:#?}", pg.generate(count).unwrap()).unwrap();
+	let generations = pg.generate(count).unwrap();
+	for password in generations {
+		writeln!(buf_out, "{}", password).unwrap();
+	}
 
 	// Show how long it took to perform operation
 	timer.stop();
 	writeln!(
 		buf_out,
-		"⏰ Generated password in {} seconds.",
+		"\n⏰ Generated password(s) in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
@@ -1046,7 +1049,7 @@ fn analyse_password(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"⏰ Analysed password in {} seconds.",
+		"\n⏰ Analysed password in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
