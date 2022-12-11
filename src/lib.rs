@@ -141,7 +141,7 @@ pub fn decrypt_entry(key: String, encrypted_serialised: Vec<u8>) -> Entry {
 pub fn encrypt_bytes(key: String, bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
 	let enc_key = Key::from_slice(key.as_bytes());
 	let aead = XChaCha20Poly1305::new(enc_key);
-	
+
 	aead.encrypt(nonce, bytes).unwrap()
 }
 
@@ -158,7 +158,7 @@ pub fn decrypt_bytes(key: String, bytes: &[u8], nonce_bytes: &[u8; 24]) -> Vec<u
 	let enc_key = Key::from_slice(key.as_bytes());
 	let aead = XChaCha20Poly1305::new(enc_key);
 	let nonce = XNonce::from_slice(nonce_bytes);
-	
+
 	aead.decrypt(nonce, bytes).unwrap()
 }
 

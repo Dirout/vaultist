@@ -302,8 +302,7 @@ fn add_entry(matches: &clap::ArgMatches) {
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
 	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
 	let schema = schema_builder.build();
-	let index =
-		Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema).unwrap();
+	let index = Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema).unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 	index_writer
 		.add_document(doc!(
@@ -373,11 +372,8 @@ fn see_entry(matches: &clap::ArgMatches) {
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
 	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
 	let schema = schema_builder.build();
-	let index = Index::open_or_create(
-		MmapDirectory::open(path_buf.clone()).unwrap(),
-		schema,
-	)
-	.unwrap();
+	let index =
+		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
@@ -562,11 +558,8 @@ fn change_entry(matches: &clap::ArgMatches) {
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
 	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
 	let schema = schema_builder.build();
-	let index = Index::open_or_create(
-		MmapDirectory::open(path_buf.clone()).unwrap(),
-		schema,
-	)
-	.unwrap();
+	let index =
+		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
@@ -737,11 +730,8 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
 	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
 	let schema = schema_builder.build();
-	let index = Index::open_or_create(
-		MmapDirectory::open(path_buf.clone()).unwrap(),
-		schema,
-	)
-	.unwrap();
+	let index =
+		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
