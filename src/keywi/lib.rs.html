@@ -316,7 +316,7 @@
 	<span class="kw">let </span>nonce = XChaCha20Poly1305::generate_nonce(<span class="kw-2">&amp;mut </span>rand_core::OsRng);
 	<span class="kw">let </span>serialised: Vec&lt;u8&gt; = bincode::serialize(<span class="kw-2">&amp;</span>item).unwrap();
 	<span class="kw">let </span>encrypted_serialised = encrypt_bytes(key, <span class="kw-2">&amp;</span>serialised, <span class="kw-2">&amp;</span>nonce);
-	<span class="kw">return </span>[nonce.to_vec(), encrypted_serialised].concat();
+	[nonce.to_vec(), encrypted_serialised].concat()
 }
 
 <span class="doccomment">/// Decrypt an entry from the vault.
@@ -330,7 +330,7 @@
 	<span class="kw">let </span>nonce_bytes: [u8; <span class="number">24</span>] = encrypted_serialised[..<span class="number">24</span>].try_into().unwrap();
 	<span class="kw">let </span>decrypted_serialised = decrypt_bytes(key, <span class="kw-2">&amp;</span>encrypted_serialised, <span class="kw-2">&amp;</span>nonce_bytes);
 	<span class="kw">let </span>decrypted: Entry = bincode::deserialize(<span class="kw-2">&amp;</span>decrypted_serialised).unwrap();
-	<span class="kw">return </span>decrypted;
+	decrypted
 }
 
 <span class="doccomment">/// Encrypt a byte array using the vault&#39;s key.
@@ -345,8 +345,8 @@
 </span><span class="kw">pub fn </span>encrypt_bytes(key: String, bytes: <span class="kw-2">&amp;</span>[u8], nonce: <span class="kw-2">&amp;</span>XNonce) -&gt; Vec&lt;u8&gt; {
 	<span class="kw">let </span>enc_key = Key::from_slice(key.as_bytes());
 	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
-	<span class="kw">let </span>encrypted = aead.encrypt(<span class="kw-2">&amp;</span>nonce, bytes).unwrap();
-	<span class="kw">return </span>encrypted;
+	
+	aead.encrypt(nonce, bytes).unwrap()
 }
 
 <span class="doccomment">/// Decrypt a byte array using the vault&#39;s key.
@@ -362,8 +362,8 @@
 	<span class="kw">let </span>enc_key = Key::from_slice(key.as_bytes());
 	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
 	<span class="kw">let </span>nonce = XNonce::from_slice(nonce_bytes);
-	<span class="kw">let </span>decrypted = aead.decrypt(<span class="kw-2">&amp;</span>nonce, bytes).unwrap();
-	<span class="kw">return </span>decrypted;
+	
+	aead.decrypt(nonce, bytes).unwrap()
 }
 
 <span class="kw">impl </span>Vault {
