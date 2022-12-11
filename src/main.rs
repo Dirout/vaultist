@@ -73,19 +73,19 @@ lazy_static! {
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
 	.subcommand(Command::new("deduplicate").about("Removes all duplicate entries in the vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(-n --ignore_names "Whether or not to ignore common names in addition to common contents when deduplicating").required(false).default_value("true").value_parser(value_parser!(bool))))
+		.arg(arg!(-n --ignore_names "Whether or not to ignore common names in addition to common contents when deduplicating").required(false).value_parser(value_parser!(bool))))
 	.subcommand(Command::new("generate").about("Generates at least one password")
-		.arg(arg!(-c --count "The number of passwords to generate").required(false).default_value("1").allow_negative_numbers(false).value_parser(value_parser!(usize)))
-		.arg(arg!(-l --length "The length of the generated passwords").required(false).default_value("8").allow_negative_numbers(false).value_parser(value_parser!(usize)))
-		.arg(arg!(-n --numbers "Passwords are allowed to, or must if `strict` is true, contain at least one number").required(false).default_value("true").value_parser(value_parser!(bool)))
-		.arg(arg!(-o --lowercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter").default_value("true").required(false).value_parser(value_parser!(bool)))
-		.arg(arg!(-u --uppercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter").default_value("true").required(false).value_parser(value_parser!(bool)))
-		.arg(arg!(-m --symbols "Passwords are allowed to, or must if `strict` is true, contain at least one special character").required(false).default_value("true").value_parser(value_parser!(bool)))
-		.arg(arg!(-s --spaces "Passwords are allowed to, or must if `strict` is true, contain at least one space").required(false).default_value("false").value_parser(value_parser!(bool)))
-		.arg(arg!(-e --exclude_similar_characters "Whether or not to exclude similar looking ASCII characters (iI1loO0\"'`|)").required(false).default_value("false").value_parser(value_parser!(bool)))
-		.arg(arg!(-t --strict "Whether or not the password rules are strictly followed for each generated password").required(false).default_value("false").value_parser(value_parser!(bool))))
+		.arg(arg!(count: "The number of passwords to generate").required(false).default_value("1").allow_negative_numbers(false).value_parser(value_parser!(usize)))
+		.arg(arg!(-l --length "The length of the generated passwords").required(false).num_args(1).default_value("8").allow_negative_numbers(false).value_parser(value_parser!(usize)))
+		.arg(arg!(-n --numbers "Passwords are allowed to, or must if `strict` is true, contain at least one number").required(false).value_parser(value_parser!(bool)))
+		.arg(arg!(-o --lowercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter").required(false).value_parser(value_parser!(bool)))
+		.arg(arg!(-u --uppercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter").required(false).value_parser(value_parser!(bool)))
+		.arg(arg!(-m --symbols "Passwords are allowed to, or must if `strict` is true, contain at least one special character").required(false).value_parser(value_parser!(bool)))
+		.arg(arg!(-s --spaces "Passwords are allowed to, or must if `strict` is true, contain at least one space").required(false).value_parser(value_parser!(bool)))
+		.arg(arg!(-e --exclude_similar_characters "Whether or not to exclude similar looking ASCII characters (iI1loO0\"'`|)").required(false).value_parser(value_parser!(bool)))
+		.arg(arg!(-t --strict "Whether or not the password rules are strictly followed for each generated password").required(false).value_parser(value_parser!(bool))))
 	.subcommand(Command::new("analyse").about("Analyses a password")
-		.arg(arg!(-p --password "The password to be analysed").required(false).value_parser(value_parser!(String))))
+		.arg(arg!(password: "The password to be analysed").required(false).value_parser(value_parser!(String))))
 	.get_matches_from(wild::args());
 }
 
@@ -854,7 +854,7 @@ fn deduplicate_entries(matches: &clap::ArgMatches) {
 
 	let ignore_names = match matches.get_one::<bool>("ignore_names") {
 		Some(b) => *b,
-		None => true,
+		None => false,
 	};
 
 	let path_buf_input = matches
@@ -911,19 +911,19 @@ fn deduplicate_entries(matches: &clap::ArgMatches) {
 ///
 /// * `length` - The length of the generated passwords (default: 8).
 ///
-/// * `numbers` - Passwords are allowed to, or must if `strict` is true, contain at least one number (default: true).
+/// * `numbers` - Passwords are allowed to, or must if `strict` is true, contain at least one number.
 ///
-/// * `lowercase_letters` - Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter (default: true).
+/// * `lowercase_letters` - Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter.
 ///
-/// * `uppercase_letters` - Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter (default: true).
+/// * `uppercase_letters` - Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter.
 ///
-/// * `symbols` - Passwords are allowed to, or must if `strict` is true, contain at least one special character (default: true).
+/// * `symbols` - Passwords are allowed to, or must if `strict` is true, contain at least one special character.
 ///
-/// * `spaces` - Passwords are allowed to, or must if `strict` is true, contain at least one space (default: false).
+/// * `spaces` - Passwords are allowed to, or must if `strict` is true, contain at least one space.
 ///
-/// * `exclude_similar_characters` - Whether or not to exclude similar looking ASCII characters (``iI1loO0"'`|``; default: false).
+/// * `exclude_similar_characters` - Whether or not to exclude similar looking ASCII characters (``iI1loO0"'`|``).
 ///
-/// * `strict` - Whether or not the password rules are strictly followed for each generated password (default: true).
+/// * `strict` - Whether or not the password rules are strictly followed for each generated password.
 fn generate_passwords(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -941,22 +941,22 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 
 	let numbers = match matches.get_one::<bool>("numbers") {
 		Some(b) => *b,
-		None => true,
+		None => false,
 	};
 
 	let lowercase_letters = match matches.get_one::<bool>("lowercase_letters") {
 		Some(b) => *b,
-		None => true,
+		None => false,
 	};
 
 	let uppercase_letters = match matches.get_one::<bool>("uppercase_letters") {
 		Some(b) => *b,
-		None => true,
+		None => false,
 	};
 
 	let symbols = match matches.get_one::<bool>("symbols") {
 		Some(b) => *b,
-		None => true,
+		None => false,
 	};
 
 	let spaces = match matches.get_one::<bool>("spaces") {
@@ -971,7 +971,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 
 	let strict = match matches.get_one::<bool>("strict") {
 		Some(b) => *b,
-		None => true,
+		None => false,
 	};
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
