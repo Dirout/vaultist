@@ -76,7 +76,7 @@ lazy_static! {
 		.arg(arg!(-n --ignore_names "Whether or not to ignore common names in addition to common contents when deduplicating").required(false).value_parser(value_parser!(bool))))
 	.subcommand(Command::new("generate").about("Generates at least one password")
 		.arg(arg!(count: "The number of passwords to generate").required(false).default_value("1").allow_negative_numbers(false).value_parser(value_parser!(usize)))
-		.arg(arg!(-l --length "The length of the generated passwords").required(false).num_args(1).default_value("8").allow_negative_numbers(false).value_parser(value_parser!(usize)))
+		.arg(arg!(length: "The length of the generated passwords").required(false).default_value("8").allow_negative_numbers(false).value_parser(value_parser!(usize)))
 		.arg(arg!(-n --numbers "Passwords are allowed to, or must if `strict` is true, contain at least one number").required(false).value_parser(value_parser!(bool)))
 		.arg(arg!(-o --lowercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter").required(false).value_parser(value_parser!(bool)))
 		.arg(arg!(-u --uppercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter").required(false).value_parser(value_parser!(bool)))
