@@ -277,7 +277,7 @@ fn add_entry(matches: &clap::ArgMatches) {
 	writeln!(buf_out, "❓ Provide a name for your new secret: ").unwrap();
 	let mut entry_name = String::new();
 	buf_in.read_line(&mut entry_name).unwrap();
-	writeln!(buf_out, "📝 Provide the value of \'{}\' … ", entry_name).unwrap();
+	writeln!(buf_out, "📝 Provide the value of \'{entry_name}\' … ").unwrap();
 	let entry_contents = edit::edit("").unwrap();
 	let mut new_entry = keywi::Entry {
 		name: entry_name,
@@ -303,7 +303,7 @@ fn add_entry(matches: &clap::ArgMatches) {
 	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
 	let schema = schema_builder.build();
 	let index =
-		Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema.clone()).unwrap();
+		Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema).unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 	index_writer
 		.add_document(doc!(
@@ -375,7 +375,7 @@ fn see_entry(matches: &clap::ArgMatches) {
 	let schema = schema_builder.build();
 	let index = Index::open_or_create(
 		MmapDirectory::open(path_buf.clone()).unwrap(),
-		schema.clone(),
+		schema,
 	)
 	.unwrap();
 	let reader = index.reader().unwrap();
@@ -415,7 +415,7 @@ fn see_entry(matches: &clap::ArgMatches) {
 		result_options.insert(
 			format!(
 				"{}. {} ({}; {})",
-				i.to_string(),
+				i,
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
 				retrieved_date.to_rfc2822()
@@ -498,7 +498,7 @@ fn see_entry(matches: &clap::ArgMatches) {
 		buf_out,
 		"{} ({})\n\n{}\n\nLast modified: {}",
 		decrypted_entry.name,
-		decrypted_entry.id.to_string(),
+		decrypted_entry.id,
 		decrypted_entry.contents,
 		decrypted_entry.last_modified.to_rfc2822()
 	)
@@ -564,7 +564,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 	let schema = schema_builder.build();
 	let index = Index::open_or_create(
 		MmapDirectory::open(path_buf.clone()).unwrap(),
-		schema.clone(),
+		schema,
 	)
 	.unwrap();
 	let reader = index.reader().unwrap();
@@ -608,7 +608,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 		result_options.insert(
 			format!(
 				"{}. {} ({}; {})",
-				i.to_string(),
+				i,
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
 				retrieved_date.to_rfc2822()
@@ -739,7 +739,7 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	let schema = schema_builder.build();
 	let index = Index::open_or_create(
 		MmapDirectory::open(path_buf.clone()).unwrap(),
-		schema.clone(),
+		schema,
 	)
 	.unwrap();
 	let reader = index.reader().unwrap();
@@ -783,7 +783,7 @@ fn remove_entry(matches: &clap::ArgMatches) {
 		result_options.insert(
 			format!(
 				"{}. {} ({}; {})",
-				i.to_string(),
+				i,
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
 				retrieved_date.to_rfc2822()
@@ -989,7 +989,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 
 	let generations = pg.generate(count).unwrap();
 	for password in generations {
-		writeln!(buf_out, "{}", password).unwrap();
+		writeln!(buf_out, "{password}").unwrap();
 	}
 
 	// Show how long it took to perform operation
@@ -1067,7 +1067,7 @@ fn write_file(path: PathBuf, bytes_to_write: &[u8]) {
 	fs::create_dir_all(path.parent().unwrap()).unwrap(); // Create output path, write to file
 	let file = File::create(path).unwrap(); // Create file which we will write to
 	let mut buffered_writer = BufWriter::new(file); // Create a buffered writer, allowing us to modify the file we've just created
-	buffered_writer.write_all(&bytes_to_write).unwrap(); // Write bytes to file
+	buffered_writer.write_all(bytes_to_write).unwrap(); // Write bytes to file
 	buffered_writer.flush().unwrap(); // Empty out the data in memory after we've written to the file
 }
 
@@ -1082,7 +1082,7 @@ fn read_file(path: PathBuf) -> Vec<u8> {
 	let mut buffer: Vec<u8> = Vec::new();
 	let mut buffered_reader = BufReader::new(file); // Create a buffered reader, allowing us to read the file we've just opened
 	buffered_reader.read_to_end(&mut buffer).unwrap(); // Write bytes that were read into buffer
-	return buffer;
+	buffer
 }
 
 /// Shows information regarding the usage and handling of this software

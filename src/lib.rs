@@ -112,7 +112,7 @@ pub fn encrypt_entry(key: String, item: &mut Entry) -> Vec<u8> {
 	let nonce = XChaCha20Poly1305::generate_nonce(&mut rand_core::OsRng);
 	let serialised: Vec<u8> = bincode::serialize(&item).unwrap();
 	let encrypted_serialised = encrypt_bytes(key, &serialised, &nonce);
-	return [nonce.to_vec(), encrypted_serialised].concat();
+	[nonce.to_vec(), encrypted_serialised].concat()
 }
 
 /// Decrypt an entry from the vault.
@@ -126,7 +126,7 @@ pub fn decrypt_entry(key: String, encrypted_serialised: Vec<u8>) -> Entry {
 	let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
 	let decrypted_serialised = decrypt_bytes(key, &encrypted_serialised, &nonce_bytes);
 	let decrypted: Entry = bincode::deserialize(&decrypted_serialised).unwrap();
-	return decrypted;
+	decrypted
 }
 
 /// Encrypt a byte array using the vault's key.
@@ -141,8 +141,8 @@ pub fn decrypt_entry(key: String, encrypted_serialised: Vec<u8>) -> Entry {
 pub fn encrypt_bytes(key: String, bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
 	let enc_key = Key::from_slice(key.as_bytes());
 	let aead = XChaCha20Poly1305::new(enc_key);
-	let encrypted = aead.encrypt(&nonce, bytes).unwrap();
-	return encrypted;
+	
+	aead.encrypt(nonce, bytes).unwrap()
 }
 
 /// Decrypt a byte array using the vault's key.
@@ -158,8 +158,8 @@ pub fn decrypt_bytes(key: String, bytes: &[u8], nonce_bytes: &[u8; 24]) -> Vec<u
 	let enc_key = Key::from_slice(key.as_bytes());
 	let aead = XChaCha20Poly1305::new(enc_key);
 	let nonce = XNonce::from_slice(nonce_bytes);
-	let decrypted = aead.decrypt(&nonce, bytes).unwrap();
-	return decrypted;
+	
+	aead.decrypt(nonce, bytes).unwrap()
 }
 
 impl Vault {
