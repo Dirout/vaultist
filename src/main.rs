@@ -23,6 +23,7 @@
 #![feature(panic_info_message)]
 #![feature(drain_filter)]
 #![feature(exclusive_range_pattern)]
+#![feature(int_roundings)]
 
 use argon2::{PasswordHash, PasswordVerifier};
 use clap::{arg, crate_version, value_parser, ArgMatches, Command};
@@ -977,8 +978,22 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 		strict,
 	};
 
-	let generations = pg.generate(count).unwrap();
+	let num_generations = count.div_ceil(2);
+	let generations = pg.generate(num_generations).unwrap();
 	for password in generations {
+		writeln!(buf_out, "{password}").unwrap();
+	}
+	let xkcd_generations = keywi::correct_horse_battery_staple(
+		count - num_generations,
+		length,
+		numbers,
+		lowercase_letters,
+		uppercase_letters,
+		symbols,
+		spaces,
+		exclude_similar_characters,
+	);
+	for password in xkcd_generations {
 		writeln!(buf_out, "{password}").unwrap();
 	}
 
