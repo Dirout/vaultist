@@ -71,7 +71,7 @@ rand_core = { version = "0.6.4", features = ["std", "serde1"] }
 rpassword = "7.2.0"
 serde = "1.0.149"
 stopwatch = "0.0.7"
-tantivy = { version = "0.18.1", features = ["mmap", "lz4-compression"] }
+tantivy = { version = "0.19.0", features = ["mmap", "lz4-compression"] }
 uuid = { version = "1.2.2", features = ["serde", "fast-rng", "v7", "macro-diagnostics"] }
 wild = "2.1.0"
 
