@@ -442,10 +442,6 @@
 <a href="#442" id="442">442</a>
 <a href="#443" id="443">443</a>
 <a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
 </pre><pre class="rust"><code><span class="comment">/*
 	This file is part of keywi.
 	keywi is free software: you can redistribute it and/or modify
@@ -520,8 +516,8 @@
 	</span><span class="kw">pub </span>salt: Vec&lt;u8&gt;,
 	<span class="doccomment">/// The key of the vault
 	</span><span class="kw">pub </span>key: String,
-	<span class="doccomment">/// The entries (and the nonces used to encrypt them) within the vault
-	</span><span class="kw">pub </span>entries: Vec&lt;(Entry, Vec&lt;u8&gt;)&gt;,
+	<span class="doccomment">/// The entries representing the secrets (and the nonces used to encrypt them) within the vault
+	</span><span class="kw">pub </span>items: Vec&lt;(Entry, Vec&lt;u8&gt;)&gt;,
 }
 
 <span class="attr">#[derive(
@@ -588,22 +584,22 @@
 	XChaCha20Poly1305::generate_nonce(<span class="kw-2">&amp;mut </span>rand_core::OsRng)
 }
 
-<span class="doccomment">/// Generate the vault&#39;s key from a user-supplied password.
+<span class="doccomment">/// Create a new vault from a user-supplied password.
 ///
 /// # Arguments
 ///
 /// * `password` - The user-supplied password.
-</span><span class="kw">pub fn </span>generate_vault_from_password(password: String) -&gt; Vault {
+</span><span class="kw">pub fn </span>create_vault_from_password(password: String) -&gt; Vault {
 	<span class="kw">let </span>salt = argon2::password_hash::SaltString::generate(<span class="kw-2">&amp;mut </span>rand_core::OsRng);
-	<span class="kw">let </span>password_and_salt = generate_key_from_password_and_salt(password, <span class="kw-2">&amp;</span>salt);
+	<span class="kw">let </span>key_and_salt = generate_key_from_password_and_salt(password, <span class="kw-2">&amp;</span>salt);
 	<span class="kw">return </span>Vault {
 		salt: salt.as_bytes().to_owned(),
-		key: password_and_salt.<span class="number">0</span>,
-		entries: Vec::new(),
+		key: key_and_salt.<span class="number">0</span>,
+		items: Vec::new(),
 	};
 }
 
-<span class="doccomment">/// Generate the vault&#39;s key from a user-supplied password and a pre-generated salt.
+<span class="doccomment">/// Generate a vault&#39;s key from a user-supplied password and a pre-generated salt.
 ///
 /// # Arguments
 ///
@@ -622,11 +618,11 @@
 	(key, salt)
 }
 
-<span class="doccomment">/// Encrypt a byte array using the vault&#39;s key.
+<span class="doccomment">/// Encrypt a byte array using a vault&#39;s key.
 ///
 /// # Arguments
 ///
-/// * `key` - The vault&#39;s key.
+/// * `key` - A vault&#39;s key.
 ///
 /// * `bytes` - The bytes to encrypt.
 ///
@@ -673,45 +669,41 @@
 }
 
 <span class="kw">impl </span>Vault {
-	<span class="doccomment">/// Sorts entries by their last modified date &amp; time, and then deduplicates entries which have contents (and, optionally, names) in common.
+	<span class="doccomment">/// Sorts entries by their last modified date &amp; time, and then deduplicates items which have contents (and, optionally, names) in common.
 	///
 	/// # Arguments
 	///
 	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-	</span><span class="kw">pub fn </span>deduplicate_entries(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ignore_names: bool) -&gt; <span class="kw-2">&amp;mut </span>[(Entry, Vec&lt;u8&gt;)] {
-		<span class="self">self</span>.entries.sort_by_cached_key(|x| x.<span class="number">0</span>.last_modified);
+	</span><span class="kw">pub fn </span>deduplicate_items(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ignore_names: bool) -&gt; <span class="kw-2">&amp;mut </span>[(Entry, Vec&lt;u8&gt;)] {
+		<span class="self">self</span>.items.sort_by_cached_key(|x| x.<span class="number">0</span>.last_modified);
 		<span class="kw">match </span>ignore_names {
-			<span class="bool-val">true </span>=&gt; {
-				<span class="self">self</span>.entries
-					.partition_dedup_by(|a, b| a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash)
-					.<span class="number">1
-			</span>}
+			<span class="bool-val">true </span>=&gt; <span class="self">self</span>.items.partition_dedup_by(|a, b| a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash).<span class="number">1</span>,
 			<span class="bool-val">false </span>=&gt; {
-				<span class="self">self</span>.entries
+				<span class="self">self</span>.items
 					.partition_dedup_by(|a, b| a.<span class="number">0</span>.name == b.<span class="number">0</span>.name &amp;&amp; a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash)
 					.<span class="number">1
 			</span>}
 		}
 	}
 
-	<span class="doccomment">/// Adds an entry into a vault.
+	<span class="doccomment">/// Adds an item into a vault.
 	///
 	/// # Arguments
 	///
-	/// * `item` - The entry to be added.
+	/// * `entry` - The entry to be added.
 	///
-	/// * `nonce` - The nonce used when encrypting the entry.
-	</span><span class="kw">pub fn </span>add_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: Entry, nonce: Vec&lt;u8&gt;) {
-		<span class="self">self</span>.entries.push((item, nonce));
+	/// * `nonce` - The nonce used when encrypting the secret.
+	</span><span class="kw">pub fn </span>add_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>, entry: Entry, nonce: Vec&lt;u8&gt;) {
+		<span class="self">self</span>.items.push((entry, nonce));
 	}
 
-	<span class="doccomment">/// Remove an entry from a vault.
+	<span class="doccomment">/// Remove an item from a vault.
 	///
 	/// # Arguments
 	///
-	/// * `item` - The entry to be removed.
-	</span><span class="kw">pub fn </span>remove_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: <span class="kw-2">&amp;</span>Entry) {
-		<span class="self">self</span>.entries = <span class="self">self</span>.entries.drain_filter(|x| x.<span class="number">0</span>.id == item.id).collect();
+	/// * `entry` - The entry to be removed.
+	</span><span class="kw">pub fn </span>remove_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>, entry: <span class="kw-2">&amp;</span>Entry) {
+		<span class="self">self</span>.items = <span class="self">self</span>.items.drain_filter(|x| x.<span class="number">0</span>.id == entry.id).collect();
 	}
 
 	<span class="doccomment">/// Encrypt an entry into the vault.
@@ -724,7 +716,7 @@
 	</span><span class="kw">pub fn </span>encrypt_secret(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: <span class="kw-2">&amp;mut </span>Secret) -&gt; Vec&lt;u8&gt; {
 		<span class="kw">let </span>serialised: Vec&lt;u8&gt; = bincode::serialize(<span class="kw-2">&amp;</span>item).unwrap();
 		<span class="kw">let </span>encrypted_serialised = encrypt_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.key, <span class="kw-2">&amp;</span>serialised, <span class="kw-2">&amp;</span>item.nonce);
-		<span class="self">self</span>.entries.push((item.clone().entry, item.clone().nonce));
+		<span class="self">self</span>.add_item(item.clone().entry, item.clone().nonce);
 		encrypted_serialised
 	}
 }
