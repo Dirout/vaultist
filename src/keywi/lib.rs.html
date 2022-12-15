@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9def1262ebc682c9.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-ebce58d0a40c3431.css"><link rel="stylesheet" disabled href="../../static.files/dark-f23faae4a2daf9a6.css"><link rel="stylesheet" disabled href="../../static.files/ayu-94f39d4346842c1e.css"><script id="default-settings" ></script><script src="../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../static.files/source-script-5cf2e01a42cc9858.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-c55e1eb52e1886b4.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../keywi/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-918aaffdca2f1bdb.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-ebce58d0a40c3431.css"><link rel="stylesheet" disabled href="../../static.files/dark-f23faae4a2daf9a6.css"><link rel="stylesheet" disabled href="../../static.files/ayu-94f39d4346842c1e.css"><script id="default-settings" ></script><script src="../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../static.files/source-script-5cf2e01a42cc9858.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-a211dbb005fb8161.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../keywi/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -391,6 +391,61 @@
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
 <a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
 </pre><pre class="rust"><code><span class="comment">/*
 	This file is part of keywi.
 	keywi is free software: you can redistribute it and/or modify
@@ -410,7 +465,8 @@
 #![feature(drain_filter)]
 #![feature(slice_partition_dedup)]
 
-</span><span class="kw">use </span>argon2::PasswordHasher;
+</span><span class="kw">use </span>argon2::password_hash::SaltString;
+<span class="kw">use </span>argon2::PasswordHasher;
 <span class="kw">use </span>chacha20poly1305::aead::{Aead, AeadCore};
 <span class="kw">use </span>chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 <span class="kw">use </span>convert_case::{Case, Casing};
@@ -464,8 +520,39 @@
 	</span><span class="kw">pub </span>salt: Vec&lt;u8&gt;,
 	<span class="doccomment">/// The key of the vault
 	</span><span class="kw">pub </span>key: String,
-	<span class="doccomment">/// The entries within the vault
-	</span><span class="kw">pub </span>entries: Vec&lt;Entry&gt;,
+	<span class="doccomment">/// The entries (and the nonces used to encrypt them) within the vault
+	</span><span class="kw">pub </span>entries: Vec&lt;(Entry, Vec&lt;u8&gt;)&gt;,
+}
+
+<span class="attr">#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Into,
+	Hash,
+	derive_more::Mul,
+	derive_more::Div,
+	derive_more::Rem,
+	derive_more::Shr,
+	derive_more::Shl,
+	Constructor,
+)]
+</span><span class="doccomment">/// An entry in the vault
+</span><span class="kw">pub struct </span>Entry {
+	<span class="doccomment">/// The name of an entry
+	</span><span class="kw">pub </span>name: String,
+	<span class="doccomment">/// The ID of the entry
+	</span><span class="kw">pub </span>id: Uuid,
+	<span class="doccomment">/// The hash of the entry&#39;s contents
+	</span><span class="kw">pub </span>hash: Vec&lt;u8&gt;,
+	<span class="doccomment">/// The date &amp; time when the entry was last modified
+	</span><span class="kw">pub </span>last_modified: chrono::DateTime&lt;chrono::Utc&gt;,
 }
 
 <span class="attr">#[derive(
@@ -486,16 +573,19 @@
 	derive_more::Shl,
 	Constructor,
 )]
-</span><span class="doccomment">/// An entry within the vault
-</span><span class="kw">pub struct </span>Entry {
-	<span class="doccomment">/// The name of an entry
-	</span><span class="kw">pub </span>name: String,
-	<span class="doccomment">/// The information contained within an entry
-	</span><span class="kw">pub </span>contents: String,
-	<span class="doccomment">/// The ID of the entry
-	</span><span class="kw">pub </span>id: Uuid,
-	<span class="doccomment">/// The date &amp; time when the entry was last modified
-	</span><span class="kw">pub </span>last_modified: chrono::DateTime&lt;chrono::Utc&gt;,
+</span><span class="doccomment">/// An encrypted entry held within the vault
+</span><span class="kw">pub struct </span>Secret {
+	<span class="doccomment">/// The metadata of the secret
+	</span><span class="kw">pub </span>entry: Entry,
+	<span class="doccomment">/// The secret, encrypted information
+	</span><span class="kw">pub </span>contents: Vec&lt;u8&gt;,
+	<span class="doccomment">/// The nonce used to encrypt the secret
+	</span><span class="kw">pub </span>nonce: Vec&lt;u8&gt;,
+}
+
+<span class="doccomment">/// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
+</span><span class="kw">pub fn </span>generate_nonce() -&gt; XNonce {
+	XChaCha20Poly1305::generate_nonce(<span class="kw-2">&amp;mut </span>rand_core::OsRng)
 }
 
 <span class="doccomment">/// Generate the vault&#39;s key from a user-supplied password.
@@ -503,46 +593,33 @@
 /// # Arguments
 ///
 /// * `password` - The user-supplied password.
-</span><span class="kw">pub fn </span>generate_key_from_password(password: String) -&gt; Vault {
+</span><span class="kw">pub fn </span>generate_vault_from_password(password: String) -&gt; Vault {
 	<span class="kw">let </span>salt = argon2::password_hash::SaltString::generate(<span class="kw-2">&amp;mut </span>rand_core::OsRng);
+	<span class="kw">let </span>password_and_salt = generate_key_from_password_and_salt(password, <span class="kw-2">&amp;</span>salt);
+	<span class="kw">return </span>Vault {
+		salt: salt.as_bytes().to_owned(),
+		key: password_and_salt.<span class="number">0</span>,
+		entries: Vec::new(),
+	};
+}
+
+<span class="doccomment">/// Generate the vault&#39;s key from a user-supplied password and a pre-generated salt.
+///
+/// # Arguments
+///
+/// * `password` - The user-supplied password.
+///
+/// * `salt` - The pre-generated salt string.
+</span><span class="kw">pub fn </span>generate_key_from_password_and_salt(
+	password: String,
+	salt: <span class="kw-2">&amp;</span>SaltString,
+) -&gt; (String, <span class="kw-2">&amp;</span>SaltString) {
 	<span class="kw">let </span>config = argon2::Argon2::default();
 	<span class="kw">let </span>key = config
 		.hash_password(password.as_bytes(), <span class="kw-2">&amp;</span>salt)
 		.unwrap()
 		.to_string();
-	<span class="kw">return </span>Vault {
-		salt: salt.as_bytes().to_owned(),
-		key,
-		entries: Vec::new(),
-	};
-}
-
-<span class="doccomment">/// Encrypt an entry into the vault.
-///
-/// # Arguments
-///
-/// * `key` - The vault&#39;s key.
-///
-/// * `item` - The entry to encrypt.
-</span><span class="kw">pub fn </span>encrypt_entry(key: String, item: <span class="kw-2">&amp;mut </span>Entry) -&gt; Vec&lt;u8&gt; {
-	<span class="kw">let </span>nonce = XChaCha20Poly1305::generate_nonce(<span class="kw-2">&amp;mut </span>rand_core::OsRng);
-	<span class="kw">let </span>serialised: Vec&lt;u8&gt; = bincode::serialize(<span class="kw-2">&amp;</span>item).unwrap();
-	<span class="kw">let </span>encrypted_serialised = encrypt_bytes(key, <span class="kw-2">&amp;</span>serialised, <span class="kw-2">&amp;</span>nonce);
-	[nonce.to_vec(), encrypted_serialised].concat()
-}
-
-<span class="doccomment">/// Decrypt an entry from the vault.
-///
-/// # Arguments
-///
-/// * `key` - The vault&#39;s key.
-///
-/// * `encrypted_serialised` - The bytes of the encrypted entry.
-</span><span class="kw">pub fn </span>decrypt_entry(key: String, encrypted_serialised: Vec&lt;u8&gt;) -&gt; Entry {
-	<span class="kw">let </span>nonce_bytes: [u8; <span class="number">24</span>] = encrypted_serialised[..<span class="number">24</span>].try_into().unwrap();
-	<span class="kw">let </span>decrypted_serialised = decrypt_bytes(key, <span class="kw-2">&amp;</span>encrypted_serialised, <span class="kw-2">&amp;</span>nonce_bytes);
-	<span class="kw">let </span>decrypted: Entry = bincode::deserialize(<span class="kw-2">&amp;</span>decrypted_serialised).unwrap();
-	decrypted
+	<span class="kw">return </span>(key, salt);
 }
 
 <span class="doccomment">/// Encrypt a byte array using the vault&#39;s key.
@@ -553,12 +630,13 @@
 ///
 /// * `bytes` - The bytes to encrypt.
 ///
-/// * `nonce_bytes` - The nonce to use.
-</span><span class="kw">pub fn </span>encrypt_bytes(key: String, bytes: <span class="kw-2">&amp;</span>[u8], nonce: <span class="kw-2">&amp;</span>XNonce) -&gt; Vec&lt;u8&gt; {
-	<span class="kw">let </span>enc_key = Key::from_slice(key.as_bytes());
+/// * `nonce_bytes` - The bytes of the nonce to use.
+</span><span class="kw">pub fn </span>encrypt_bytes(key: <span class="kw-2">&amp;</span>String, bytes: <span class="kw-2">&amp;</span>[u8], nonce_bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; Vec&lt;u8&gt; {
+	<span class="kw">let </span>enc_key = Key::from_slice(<span class="kw-2">&amp;</span>key.as_bytes()[..<span class="number">32</span>]);
 	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
 
-	aead.encrypt(nonce, bytes).unwrap()
+	aead.encrypt(<span class="kw-2">&amp;</span>XNonce::from_slice(nonce_bytes), bytes)
+		.unwrap()
 }
 
 <span class="doccomment">/// Decrypt a byte array using the vault&#39;s key.
@@ -569,13 +647,29 @@
 ///
 /// * `bytes` - The bytes to decrypt.
 ///
-/// * `nonce_bytes` - The nonce to use.
-</span><span class="kw">pub fn </span>decrypt_bytes(key: String, bytes: <span class="kw-2">&amp;</span>[u8], nonce_bytes: <span class="kw-2">&amp;</span>[u8; <span class="number">24</span>]) -&gt; Vec&lt;u8&gt; {
-	<span class="kw">let </span>enc_key = Key::from_slice(key.as_bytes());
+/// * `nonce` - The nonce to use.
+</span><span class="kw">pub fn </span>decrypt_bytes(key: String, bytes: <span class="kw-2">&amp;</span>[u8], nonce: <span class="kw-2">&amp;</span>XNonce) -&gt; Vec&lt;u8&gt; {
+	<span class="kw">let </span>enc_key = Key::from_slice(<span class="kw-2">&amp;</span>key.as_bytes()[..<span class="number">32</span>]);
 	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
-	<span class="kw">let </span>nonce = XNonce::from_slice(nonce_bytes);
 
 	aead.decrypt(nonce, bytes).unwrap()
+}
+
+<span class="doccomment">/// Decrypt a secret from the vault.
+///
+/// # Arguments
+///
+/// * `key` - The vault&#39;s key.
+///
+/// * `encrypted_serialised` - The bytes of the encrypted secret.
+///
+/// * `nonce_bytes` - The bytes of the nonce used to encrypt the secret.
+</span><span class="kw">pub fn </span>decrypt_secret(key: String, encrypted_serialised: Vec&lt;u8&gt;, nonce_bytes: Vec&lt;u8&gt;) -&gt; Secret {
+	<span class="comment">// let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
+	</span><span class="kw">let </span>nonce = XNonce::from_slice(<span class="kw-2">&amp;</span>nonce_bytes);
+	<span class="kw">let </span>decrypted_serialised = decrypt_bytes(key, <span class="kw-2">&amp;</span>encrypted_serialised, <span class="kw-2">&amp;</span>nonce);
+	<span class="kw">let </span>decrypted: Secret = bincode::deserialize(<span class="kw-2">&amp;</span>decrypted_serialised).unwrap();
+	decrypted
 }
 
 <span class="kw">impl </span>Vault {
@@ -584,17 +678,17 @@
 	/// # Arguments
 	///
 	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-	</span><span class="kw">pub fn </span>deduplicate_entries(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ignore_names: bool) -&gt; <span class="kw-2">&amp;mut </span>[Entry] {
-		<span class="self">self</span>.entries.sort_by_cached_key(|x| x.last_modified);
+	</span><span class="kw">pub fn </span>deduplicate_entries(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ignore_names: bool) -&gt; <span class="kw-2">&amp;mut </span>[(Entry, Vec&lt;u8&gt;)] {
+		<span class="self">self</span>.entries.sort_by_cached_key(|x| x.<span class="number">0</span>.last_modified);
 		<span class="kw">match </span>ignore_names {
 			<span class="bool-val">true </span>=&gt; {
 				<span class="self">self</span>.entries
-					.partition_dedup_by(|a, b| a.contents == b.contents)
+					.partition_dedup_by(|a, b| a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash)
 					.<span class="number">1
 			</span>}
 			<span class="bool-val">false </span>=&gt; {
 				<span class="self">self</span>.entries
-					.partition_dedup_by(|a, b| a.name == b.name &amp;&amp; a.contents == b.contents)
+					.partition_dedup_by(|a, b| a.<span class="number">0</span>.name == b.<span class="number">0</span>.name &amp;&amp; a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash)
 					.<span class="number">1
 			</span>}
 		}
@@ -605,8 +699,10 @@
 	/// # Arguments
 	///
 	/// * `item` - The entry to be added.
-	</span><span class="kw">pub fn </span>add_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: Entry) {
-		<span class="self">self</span>.entries.push(item);
+	///
+	/// * `nonce` - The nonce used when encrypting the entry.
+	</span><span class="kw">pub fn </span>add_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: Entry, nonce: Vec&lt;u8&gt;) {
+		<span class="self">self</span>.entries.push((item, nonce));
 	}
 
 	<span class="doccomment">/// Remove an entry from a vault.
@@ -615,7 +711,21 @@
 	///
 	/// * `item` - The entry to be removed.
 	</span><span class="kw">pub fn </span>remove_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: <span class="kw-2">&amp;</span>Entry) {
-		<span class="self">self</span>.entries = <span class="self">self</span>.entries.drain_filter(|x| x.id == item.id).collect();
+		<span class="self">self</span>.entries = <span class="self">self</span>.entries.drain_filter(|x| x.<span class="number">0</span>.id == item.id).collect();
+	}
+
+	<span class="doccomment">/// Encrypt an entry into the vault.
+	///
+	/// # Arguments
+	///
+	/// * `self` - The vault.
+	///
+	/// * `item` - The secret to encrypt.
+	</span><span class="kw">pub fn </span>encrypt_secret(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: <span class="kw-2">&amp;mut </span>Secret) -&gt; Vec&lt;u8&gt; {
+		<span class="kw">let </span>serialised: Vec&lt;u8&gt; = bincode::serialize(<span class="kw-2">&amp;</span>item).unwrap();
+		<span class="kw">let </span>encrypted_serialised = encrypt_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.key, <span class="kw-2">&amp;</span>serialised, <span class="kw-2">&amp;</span>item.nonce);
+		<span class="self">self</span>.entries.push((item.clone().entry, item.clone().nonce));
+		encrypted_serialised
 	}
 }
 
@@ -670,8 +780,8 @@
 						<span class="bool-val">true </span>=&gt; {
 							<span class="kw">let </span><span class="kw-2">mut </span>randomly_selected_word = String::new();
 							<span class="kw">loop </span>{
-								<span class="kw">if </span>randomly_selected_word.len() &gt; <span class="number">0
-									</span>&amp;&amp; randomly_selected_word.len() &lt;= characters_remaining - <span class="number">3
+								<span class="kw">if </span>!randomly_selected_word.is_empty()
+									&amp;&amp; randomly_selected_word.len() &lt;= characters_remaining - <span class="number">3
 								</span>{
 									<span class="kw">match </span>uppercase_letters &amp;&amp; lowercase_letters {
 										<span class="comment">// Use both uppercase and lowercase letters
@@ -785,4 +895,4 @@
 	result
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="keywi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0-nightly (c6fcdb690 2022-12-10)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="keywi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0-nightly (b70baa4f9 2022-12-14)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>
