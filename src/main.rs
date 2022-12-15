@@ -1026,7 +1026,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 	let num_generations = count.div_ceil(2);
 	let generations = pg.generate(num_generations).unwrap();
 	for password in generations {
-		writeln!(buf_out, "{password}").unwrap();
+		writeln!(buf_out, "{}", Colour::Blue.bold().paint(password)).unwrap();
 	}
 	let xkcd_generations = keywi::correct_horse_battery_staple(
 		count - num_generations,
@@ -1039,7 +1039,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 		exclude_similar_characters,
 	);
 	for password in xkcd_generations {
-		writeln!(buf_out, "{password}").unwrap();
+		writeln!(buf_out, "{}", Colour::Blue.bold().paint(password)).unwrap();
 	}
 
 	// Show how long it took to perform operation
