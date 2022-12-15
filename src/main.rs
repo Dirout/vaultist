@@ -35,6 +35,7 @@ use dialoguer::console::Term;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{FuzzySelect, Input};
 use filenamify::filenamify;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use miette::miette;
 use mimalloc::MiMalloc;
@@ -51,6 +52,7 @@ use tantivy::query::QueryParser;
 use tantivy::schema::{Schema, STORED, TEXT};
 use tantivy::{doc, DocAddress, Index, Score};
 use uuid::Uuid;
+use zxcvbn::zxcvbn;
 
 #[global_allocator]
 /// The global memory allocator
@@ -1081,19 +1083,72 @@ fn analyse_password(matches: &clap::ArgMatches) {
 	let analysed_password = analyzer::analyze(&password);
 	let score = scorer::score(&analysed_password);
 	let score_string = match Some(score.trunc() as usize) {
-		Some(_x @ 0..20) => "very vulnerable",
-		Some(_x @ 20..40) => "vulnerable",
-		Some(_x @ 40..60) => "very weak",
-		Some(_x @ 60..80) => "weak",
-		Some(_x @ 80..90) => "good",
-		Some(_x @ 90..95) => "strong",
-		Some(_x @ 95..99) => "very strong",
-		Some(_x @ 99..100) => "ideal",
-		Some(_) => "error during scoring",
-		None => "error during scoring",
+		Some(_x @ 0..20) => Colour::Red.paint("⚠️ very vulnerable"),
+		Some(_x @ 20..40) => Colour::Red.paint("⚠️ vulnerable"),
+		Some(_x @ 40..60) => Colour::Red.paint("⚠️ very weak"),
+		Some(_x @ 60..80) => Colour::Red.paint("⚠️ weak"),
+		Some(_x @ 80..90) => Colour::Yellow.paint("➖ good"),
+		Some(_x @ 90..95) => Colour::Green.paint("✔️ strong"),
+		Some(_x @ 95..99) => Colour::Cyan.paint("✔️ very strong"),
+		Some(_x @ 99..100) => Colour::Blue.paint("✔️ ideal"),
+		Some(_) => Colour::Fixed(7).paint("❌ error during scoring"),
+		None => Colour::Fixed(7).paint("❌ error during scoring"),
 	};
 
-	writeln!(buf_out, "Strength: {}% ({})\nIs common?: {}\nLength: {}\nNumber of lowercase characters: {}\nNumber of uppercase characters: {}\nNumber of numbers: {}\nNumber of symbols: {}\nNumber of other characters: {}\nNumber of spaces: {}\nNumber of non-consecutively repeated characters: {}\nNumber of consecutively repeated characters: {}\nNumber of characters in progressive sequences with at least a length of three: {}", score, score_string, if analyzer::is_common_password(password) { "yes" } else { "no" }, analysed_password.length(), analysed_password.lowercase_letters_count(), analysed_password.uppercase_letters_count(), analysed_password.numbers_count(), analysed_password.symbols_count(), analysed_password.other_characters_count(), analysed_password.spaces_count(), analysed_password.non_consecutive_count(), analysed_password.consecutive_count(), analysed_password.progressive_count()).unwrap();
+	let strength_estimate = zxcvbn(&password, &[]).unwrap();
+	let warning_string = if strength_estimate.feedback().is_some() {
+		match strength_estimate.feedback().as_ref().unwrap().warning() {
+			Some(w) => format!("\nWarning: {}", Colour::Red.bold().paint(w.to_string())),
+			None => "".to_owned(),
+		}
+	} else {
+		"".to_owned()
+	};
+	let suggestions_string = if strength_estimate.feedback().is_some() {
+		let suggestions = strength_estimate.feedback().as_ref().unwrap().suggestions();
+		match suggestions.is_empty() {
+			false => format!(
+				"\n{}:\n{}",
+				Colour::Yellow.bold().paint("Suggestions"),
+				suggestions
+					.iter()
+					.map(|s| " - ".to_owned() + &s.to_string())
+					.collect_vec()
+					.join("\n")
+			),
+			true => "".to_owned(),
+		}
+	} else {
+		"".to_owned()
+	};
+	let feedback = if strength_estimate.score() < 3 || score < 80.0 {
+		format!(
+			"\n{}{}{}",
+			Colour::Red
+				.bold()
+				.paint("❌ This password is insecure and should not be used."),
+			warning_string,
+			suggestions_string
+		)
+	} else if strength_estimate.score() >= 3 && score >= 80.0 {
+		format!(
+			"\n{}",
+			Colour::Green
+				.bold()
+				.paint("✔️ This password is sufficiently safe to use.")
+		)
+	} else {
+		format!(
+			"\n{}{}{}",
+			Colour::Yellow
+				.bold()
+				.paint("⚠️ This password may not be secure."),
+			warning_string,
+			suggestions_string
+		)
+	};
+
+	writeln!(buf_out, "Strength: {:.2}% ({})\nEstimated guesses to crack: {}\nOrder of magnitude of estimated guesses: {:.2}\nTime to crack in online attack with rate limiting: {}\nTime to crack in online attack without rate limiting: {}\nTime to crack in offline attack with secure hashing: {}\nTime to crack in offline attack with insecure hashing: {}\nEasy to crack?: {}\nIs common?: {}\nLength: {}\nNumber of lowercase characters: {}\nNumber of uppercase characters: {}\nNumber of numbers: {}\nNumber of symbols: {}\nNumber of other characters: {}\nNumber of spaces: {}\nNumber of non-consecutively repeated characters: {}\nNumber of consecutively repeated characters: {}\nNumber of characters in progressive sequences with at least a length of three: {}\n{}", score, score_string, strength_estimate.guesses(), strength_estimate.guesses_log10(), strength_estimate.crack_times().online_throttling_100_per_hour(), strength_estimate.crack_times().online_no_throttling_10_per_second(), strength_estimate.crack_times().offline_slow_hashing_1e4_per_second(), strength_estimate.crack_times().offline_fast_hashing_1e10_per_second(), if strength_estimate.score() < 3 { "yes" } else { "no" }, if analyzer::is_common_password(password) { "yes" } else { "no" }, analysed_password.length(), analysed_password.lowercase_letters_count(), analysed_password.uppercase_letters_count(), analysed_password.numbers_count(), analysed_password.symbols_count(), analysed_password.other_characters_count(), analysed_password.spaces_count(), analysed_password.non_consecutive_count(), analysed_password.consecutive_count(), analysed_password.progressive_count(), feedback).unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
