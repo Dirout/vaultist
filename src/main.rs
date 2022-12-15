@@ -25,11 +25,15 @@
 #![feature(exclusive_range_pattern)]
 #![feature(int_roundings)]
 
+use ansi_term::Colour;
 use argon2::{PasswordHash, PasswordVerifier};
+use blake2::digest::Update;
+use blake2::digest::VariableOutput;
+use blake2::Blake2bVar;
 use clap::{arg, crate_version, value_parser, ArgMatches, Command};
 use dialoguer::console::Term;
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::FuzzySelect;
+use dialoguer::{FuzzySelect, Input};
 use filenamify::filenamify;
 use lazy_static::lazy_static;
 use miette::miette;
@@ -38,13 +42,13 @@ use passwords::{analyzer, scorer, PasswordGenerator};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 use stopwatch::Stopwatch;
 use tantivy::collector::TopDocs;
 use tantivy::directory::MmapDirectory;
 use tantivy::query::QueryParser;
-use tantivy::schema::{Schema, INDEXED, STORED, TEXT};
+use tantivy::schema::{Schema, STORED, TEXT};
 use tantivy::{doc, DocAddress, Index, Score};
 use uuid::Uuid;
 
@@ -110,6 +114,19 @@ fn main() {
 			.to_string()
 		);
 	}));
+	// miette::set_hook(Box::new(|_| {
+	// 	Box::new(
+	// 		miette::MietteHandlerOpts::new()
+	// 			.terminal_links(true)
+	// 			.unicode(true)
+	// 			.context_lines(3)
+	// 			.tab_width(4)
+	// 			.with_cause_chain()
+	// 			.graphical_theme(miette::GraphicalTheme::unicode())
+	// 			.build(),
+	// 	)
+	// }))
+	// .unwrap();
 
 	writeln!(
 		buf_out,
@@ -195,7 +212,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 		"❌ Password could not be confirmed."
 	);
 
-	let salt_and_key = keywi::generate_key_from_password(confirm_attempt_password);
+	let salt_and_key = keywi::generate_vault_from_password(confirm_attempt_password);
 	let verify_attempt_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -255,8 +272,6 @@ fn add_entry(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut timer = Stopwatch::start_new(); // Start the stopwatch
-
 	let mut deserialised_vault: keywi::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password_from_bufread(
@@ -275,23 +290,40 @@ fn add_entry(matches: &clap::ArgMatches) {
 		"❌ Could not access vault with that password."
 	);
 
-	writeln!(buf_out, "❓ Provide a name for your new secret: ").unwrap();
-	let mut entry_name = String::new();
-	buf_in.read_line(&mut entry_name).unwrap();
-	writeln!(buf_out, "📝 Provide the value of \'{entry_name}\' … ").unwrap();
+	let entry_name: String = Input::new()
+		.with_prompt("❓ Provide a name for your new secret")
+		.allow_empty(false)
+		.interact_text_on(&Term::buffered_stdout())
+		.unwrap();
+	println!("📝 Provide the value of \'{entry_name}\' … ");
 	let entry_contents = edit::edit("").unwrap();
-	let mut new_entry = keywi::Entry {
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let mut hasher = Blake2bVar::new(64).unwrap();
+	hasher.update(&entry_contents.as_bytes());
+	let mut entry_hash = [0u8; 64];
+	hasher.finalize_variable(&mut entry_hash).unwrap();
+
+	let new_entry = keywi::Entry {
 		name: entry_name,
-		contents: entry_contents,
+		hash: entry_hash.to_vec(),
 		id: Uuid::new_v4(),
 		last_modified: chrono::offset::Utc::now(),
 	};
+	let nonce = keywi::generate_nonce();
+	let mut new_secret = keywi::Secret {
+		entry: new_entry.clone(),
+		contents: entry_contents.into_bytes(),
+		nonce: nonce.to_vec(),
+	};
+	let encrypted_secret = deserialised_vault.encrypt_secret(&mut new_secret);
 	write_file(
 		path_buf.join(filenamify(new_entry.id.to_string() + ".keywi")),
-		&keywi::encrypt_entry(deserialised_vault.clone().key, &mut new_entry),
+		&encrypted_secret,
 	);
 
-	deserialised_vault.add_entry(new_entry.clone());
+	deserialised_vault.add_entry(new_entry.clone(), nonce.to_vec());
 	write_file(
 		path_buf.join(".keywi-vault"),
 		&bincode::serialize(&deserialised_vault).unwrap(),
@@ -299,18 +331,16 @@ fn add_entry(matches: &clap::ArgMatches) {
 
 	let mut schema_builder = Schema::builder();
 	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let contents = schema_builder.add_text_field("body", TEXT);
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
+	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
 	let schema = schema_builder.build();
 	let index = Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema).unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 	index_writer
 		.add_document(doc!(
 			name => new_entry.clone().name,
-			contents => new_entry.clone().contents,
 			id => new_entry.clone().id.to_string(),
-			last_modified => new_entry.clone().last_modified.timestamp(),
+			last_modified => new_entry.clone().last_modified.to_rfc2822(),
 		))
 		.unwrap();
 	index_writer.commit().unwrap();
@@ -369,19 +399,20 @@ fn see_entry(matches: &clap::ArgMatches) {
 
 	let mut schema_builder = Schema::builder();
 	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let contents = schema_builder.add_text_field("body", TEXT);
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
+	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
 	let schema = schema_builder.build();
 	let index =
 		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
-	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
+	let query_parser = QueryParser::for_index(&index, vec![name, id, last_modified]);
 
-	writeln!(buf_out, "❓ Search for the secret you're trying to view: ").unwrap();
-	let mut entry_query = String::new();
-	buf_in.read_line(&mut entry_query).unwrap();
+	let entry_query: String = Input::new()
+		.with_prompt("❓ Search for the secret you're trying to view")
+		.allow_empty(false)
+		.interact_text_on(&Term::buffered_stdout())
+		.unwrap();
 	let query = query_parser.parse_query(&entry_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
 		.search(
@@ -395,27 +426,18 @@ fn see_entry(matches: &clap::ArgMatches) {
 	for (_score, doc_address) in results {
 		let retrieved_doc = searcher.doc(doc_address).unwrap();
 		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
-		let retrieved_date: chrono::DateTime<chrono::Utc> = chrono::DateTime::from_utc(
-			chrono::NaiveDateTime::from_timestamp_opt(
-				retrieved_doc
-					.get_first(last_modified)
-					.unwrap()
-					.as_date()
-					.unwrap()
-					.into_utc()
-					.unix_timestamp(),
-				0,
-			)
-			.unwrap(),
-			chrono::Utc,
-		);
+		let retrieved_date = retrieved_doc
+			.get_first(last_modified)
+			.unwrap()
+			.as_text()
+			.unwrap();
 		result_options.insert(
 			format!(
 				"{}. {} ({}; {})",
 				i,
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
-				retrieved_date.to_rfc2822()
+				retrieved_date
 			),
 			Uuid::parse_str(retrieved_id).unwrap(),
 		);
@@ -430,18 +452,18 @@ fn see_entry(matches: &clap::ArgMatches) {
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
 	let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
 		.items(&result_options_keys)
-		.with_prompt("❓ Select the secret you're trying to view: ")
+		.with_prompt("Select the secret you're trying to view: ")
 		.report(true)
 		.highlight_matches(true)
 		.interact_on_opt(&Term::buffered_stderr())
 		.unwrap()
 		.unwrap();
 
-	let selected_entry = deserialised_vault
-		.entries
+	let deserialised_vault_entries_clone = deserialised_vault.entries.clone();
+	let selected_entry = deserialised_vault_entries_clone
 		.iter()
 		.filter_map(|val| {
-			if val.id == *result_options.values().nth(selection).unwrap() {
+			if val.0.id == *result_options.values().nth(selection).unwrap() {
 				Some(val)
 			} else {
 				None
@@ -488,16 +510,24 @@ fn see_entry(matches: &clap::ArgMatches) {
 	// };
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+	let entry_nonce_map: HashMap<keywi::Entry, Vec<u8>> =
+		deserialised_vault.entries.into_iter().collect();
+	let entry_nonce = entry_nonce_map.get(&selected_entry.0).unwrap();
 	let encrypted_entry =
-		read_file(path_buf.join(filenamify(selected_entry.id.to_string() + ".keywi")));
-	let decrypted_entry = keywi::decrypt_entry(deserialised_vault.key, encrypted_entry);
+		read_file(path_buf.join(filenamify(selected_entry.0.id.to_string() + ".keywi")));
+	let decrypted_secret = keywi::decrypt_secret(
+		deserialised_vault.key,
+		encrypted_entry,
+		entry_nonce.to_owned(),
+	);
 	writeln!(
 		buf_out,
-		"{} ({})\n\n{}\n\nLast modified: {}",
-		decrypted_entry.name,
-		decrypted_entry.id,
-		decrypted_entry.contents,
-		decrypted_entry.last_modified.to_rfc2822()
+		"\n{} ({}):\n\n{}\n\n{} {}\n",
+		Colour::Yellow.bold().paint(decrypted_secret.entry.name),
+		Colour::Fixed(7).paint(decrypted_secret.entry.id.to_string()),
+		Colour::Cyan.paint(String::from_utf8(decrypted_secret.contents).unwrap()),
+		Colour::Yellow.bold().paint("Last modified:"),
+		Colour::Fixed(7).paint(decrypted_secret.entry.last_modified.to_rfc2822())
 	)
 	.unwrap();
 
@@ -535,7 +565,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let deserialised_vault: keywi::Vault =
+	let mut deserialised_vault: keywi::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
@@ -557,7 +587,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 	let name = schema_builder.add_text_field("title", TEXT | STORED);
 	let contents = schema_builder.add_text_field("body", TEXT);
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
+	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
 	let schema = schema_builder.build();
 	let index =
 		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
@@ -565,13 +595,11 @@ fn change_entry(matches: &clap::ArgMatches) {
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
 
-	writeln!(
-		buf_out,
-		"❓ Search for the secret you're trying to modify: "
-	)
-	.unwrap();
-	let mut entry_query = String::new();
-	buf_in.read_line(&mut entry_query).unwrap();
+	let entry_query: String = Input::new()
+		.with_prompt("❓ Search for the secret you're trying to modify: ")
+		.allow_empty(false)
+		.interact_text_on(&Term::buffered_stdout())
+		.unwrap();
 	let query = query_parser.parse_query(&entry_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
 		.search(
@@ -620,7 +648,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
 	let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
 		.items(&result_options_keys)
-		.with_prompt("❓ Select the secret you're trying to modify: ")
+		.with_prompt("Select the secret you're trying to modify: ")
 		.report(true)
 		.highlight_matches(true)
 		.interact_on_opt(&Term::buffered_stderr())
@@ -631,7 +659,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 		.entries
 		.iter()
 		.filter_map(|val| {
-			if val.id == *result_options.values().nth(selection).unwrap() {
+			if val.0.id == *result_options.values().nth(selection).unwrap() {
 				Some(val)
 			} else {
 				None
@@ -640,37 +668,56 @@ fn change_entry(matches: &clap::ArgMatches) {
 		.last()
 		.unwrap();
 
-	let encrypted_entry =
-		read_file(path_buf.join(filenamify(selected_entry.id.to_string() + ".keywi")));
-	let decrypted_entry = keywi::decrypt_entry(deserialised_vault.clone().key, encrypted_entry);
+	let encrypted_entry = read_file(path_buf.join(filenamify(
+		selected_entry.clone().0.id.to_string() + ".keywi",
+	)));
+	let decrypted_secret = keywi::decrypt_secret(
+		deserialised_vault.clone().key,
+		encrypted_entry,
+		selected_entry.clone().1,
+	);
 
 	writeln!(
 		buf_out,
 		"📝 Provide the new name of \'{}\' … ",
-		decrypted_entry.name
+		decrypted_secret.clone().entry.name
 	)
 	.unwrap();
-	let new_entry_name = edit::edit(decrypted_entry.clone().name).unwrap();
+	let new_entry_name = edit::edit(decrypted_secret.clone().entry.name).unwrap();
 
 	writeln!(
 		buf_out,
 		"📝 Provide the new contents of \'{}\' … ",
-		decrypted_entry.name
+		decrypted_secret.clone().entry.name
 	)
 	.unwrap();
-	let new_entry_contents = edit::edit(decrypted_entry.contents).unwrap();
-	let mut new_entry = keywi::Entry {
+	let new_entry_contents = edit::edit(decrypted_secret.clone().contents).unwrap();
+
+	let mut hasher = Blake2bVar::new(64).unwrap();
+	hasher.update(&new_entry_contents.as_bytes());
+	let mut entry_hash = [0u8; 64];
+	hasher.finalize_variable(&mut entry_hash).unwrap();
+
+	let new_entry = keywi::Entry {
 		name: new_entry_name,
-		contents: new_entry_contents,
-		id: decrypted_entry.id,
+		hash: entry_hash.to_vec(),
+		id: decrypted_secret.clone().entry.id,
 		last_modified: chrono::offset::Utc::now(),
+	};
+	let entry_nonce_map: HashMap<keywi::Entry, Vec<u8>> =
+		deserialised_vault.entries.clone().into_iter().collect();
+	let entry_nonce = entry_nonce_map.get(&new_entry).unwrap();
+	let mut new_secret = keywi::Secret {
+		entry: new_entry.clone(),
+		contents: new_entry_contents.into_bytes(),
+		nonce: entry_nonce.to_owned(),
 	};
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	write_file(
 		path_buf.join(filenamify(new_entry.id.to_string() + ".keywi")),
-		&keywi::encrypt_entry(deserialised_vault.key, &mut new_entry),
+		&deserialised_vault.encrypt_secret(&mut new_secret),
 	);
 
 	// Show how long it took to perform operation
@@ -729,7 +776,7 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	let name = schema_builder.add_text_field("title", TEXT | STORED);
 	let contents = schema_builder.add_text_field("body", TEXT);
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_date_field("last_modified", INDEXED | STORED);
+	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
 	let schema = schema_builder.build();
 	let index =
 		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
@@ -737,13 +784,11 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
 
-	writeln!(
-		buf_out,
-		"❓ Search for the secret you're trying to modify: "
-	)
-	.unwrap();
-	let mut entry_query = String::new();
-	buf_in.read_line(&mut entry_query).unwrap();
+	let entry_query: String = Input::new()
+		.with_prompt("❓ Search for the secret you're trying to remove")
+		.allow_empty(false)
+		.interact_text_on(&Term::buffered_stdout())
+		.unwrap();
 	let query = query_parser.parse_query(&entry_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
 		.search(
@@ -792,7 +837,7 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
 	let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
 		.items(&result_options_keys)
-		.with_prompt("❓ Select the secret you're trying to modify: ")
+		.with_prompt("Select the secret you're trying to remove: ")
 		.report(true)
 		.highlight_matches(true)
 		.interact_on_opt(&Term::buffered_stderr())
@@ -803,7 +848,7 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	let selected_entry = copy_of_entries
 		.iter()
 		.filter_map(|val| {
-			if val.id == *result_options.values().nth(selection).unwrap() {
+			if val.0.id == *result_options.values().nth(selection).unwrap() {
 				Some(val)
 			} else {
 				None
@@ -814,8 +859,8 @@ fn remove_entry(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	deserialised_vault.remove_entry(selected_entry);
-	std::fs::remove_file(path_buf.join(filenamify(selected_entry.id.to_string() + ".keywi")))
+	deserialised_vault.remove_entry(&selected_entry.0);
+	std::fs::remove_file(path_buf.join(filenamify(selected_entry.0.id.to_string() + ".keywi")))
 		.unwrap();
 
 	// Show how long it took to perform operation
@@ -881,7 +926,7 @@ fn deduplicate_entries(matches: &clap::ArgMatches) {
 
 	let duplicate_entries = deserialised_vault.deduplicate_entries(ignore_names);
 	for entry in duplicate_entries {
-		std::fs::remove_file(path_buf.join(filenamify(entry.id.to_string() + ".keywi"))).unwrap();
+		std::fs::remove_file(path_buf.join(filenamify(entry.0.id.to_string() + ".keywi"))).unwrap();
 	}
 
 	// Show how long it took to perform operation

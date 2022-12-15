@@ -17,6 +17,7 @@
 #![feature(drain_filter)]
 #![feature(slice_partition_dedup)]
 
+use argon2::password_hash::SaltString;
 use argon2::PasswordHasher;
 use chacha20poly1305::aead::{Aead, AeadCore};
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
@@ -71,8 +72,39 @@ pub struct Vault {
 	pub salt: Vec<u8>,
 	/// The key of the vault
 	pub key: String,
-	/// The entries within the vault
-	pub entries: Vec<Entry>,
+	/// The entries (and the nonces used to encrypt them) within the vault
+	pub entries: Vec<(Entry, Vec<u8>)>,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Into,
+	Hash,
+	derive_more::Mul,
+	derive_more::Div,
+	derive_more::Rem,
+	derive_more::Shr,
+	derive_more::Shl,
+	Constructor,
+)]
+/// An entry in the vault
+pub struct Entry {
+	/// The name of an entry
+	pub name: String,
+	/// The ID of the entry
+	pub id: Uuid,
+	/// The hash of the entry's contents
+	pub hash: Vec<u8>,
+	/// The date & time when the entry was last modified
+	pub last_modified: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(
@@ -93,16 +125,19 @@ pub struct Vault {
 	derive_more::Shl,
 	Constructor,
 )]
-/// An entry within the vault
-pub struct Entry {
-	/// The name of an entry
-	pub name: String,
-	/// The information contained within an entry
-	pub contents: String,
-	/// The ID of the entry
-	pub id: Uuid,
-	/// The date & time when the entry was last modified
-	pub last_modified: chrono::DateTime<chrono::Utc>,
+/// An encrypted entry held within the vault
+pub struct Secret {
+	/// The metadata of the secret
+	pub entry: Entry,
+	/// The secret, encrypted information
+	pub contents: Vec<u8>,
+	/// The nonce used to encrypt the secret
+	pub nonce: Vec<u8>,
+}
+
+/// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
+pub fn generate_nonce() -> XNonce {
+	XChaCha20Poly1305::generate_nonce(&mut rand_core::OsRng)
 }
 
 /// Generate the vault's key from a user-supplied password.
@@ -110,46 +145,33 @@ pub struct Entry {
 /// # Arguments
 ///
 /// * `password` - The user-supplied password.
-pub fn generate_key_from_password(password: String) -> Vault {
+pub fn generate_vault_from_password(password: String) -> Vault {
 	let salt = argon2::password_hash::SaltString::generate(&mut rand_core::OsRng);
+	let password_and_salt = generate_key_from_password_and_salt(password, &salt);
+	return Vault {
+		salt: salt.as_bytes().to_owned(),
+		key: password_and_salt.0,
+		entries: Vec::new(),
+	};
+}
+
+/// Generate the vault's key from a user-supplied password and a pre-generated salt.
+///
+/// # Arguments
+///
+/// * `password` - The user-supplied password.
+///
+/// * `salt` - The pre-generated salt string.
+pub fn generate_key_from_password_and_salt(
+	password: String,
+	salt: &SaltString,
+) -> (String, &SaltString) {
 	let config = argon2::Argon2::default();
 	let key = config
 		.hash_password(password.as_bytes(), &salt)
 		.unwrap()
 		.to_string();
-	return Vault {
-		salt: salt.as_bytes().to_owned(),
-		key,
-		entries: Vec::new(),
-	};
-}
-
-/// Encrypt an entry into the vault.
-///
-/// # Arguments
-///
-/// * `key` - The vault's key.
-///
-/// * `item` - The entry to encrypt.
-pub fn encrypt_entry(key: String, item: &mut Entry) -> Vec<u8> {
-	let nonce = XChaCha20Poly1305::generate_nonce(&mut rand_core::OsRng);
-	let serialised: Vec<u8> = bincode::serialize(&item).unwrap();
-	let encrypted_serialised = encrypt_bytes(key, &serialised, &nonce);
-	[nonce.to_vec(), encrypted_serialised].concat()
-}
-
-/// Decrypt an entry from the vault.
-///
-/// # Arguments
-///
-/// * `key` - The vault's key.
-///
-/// * `encrypted_serialised` - The bytes of the encrypted entry.
-pub fn decrypt_entry(key: String, encrypted_serialised: Vec<u8>) -> Entry {
-	let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
-	let decrypted_serialised = decrypt_bytes(key, &encrypted_serialised, &nonce_bytes);
-	let decrypted: Entry = bincode::deserialize(&decrypted_serialised).unwrap();
-	decrypted
+	return (key, salt);
 }
 
 /// Encrypt a byte array using the vault's key.
@@ -160,12 +182,13 @@ pub fn decrypt_entry(key: String, encrypted_serialised: Vec<u8>) -> Entry {
 ///
 /// * `bytes` - The bytes to encrypt.
 ///
-/// * `nonce_bytes` - The nonce to use.
-pub fn encrypt_bytes(key: String, bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
-	let enc_key = Key::from_slice(key.as_bytes());
+/// * `nonce_bytes` - The bytes of the nonce to use.
+pub fn encrypt_bytes(key: &String, bytes: &[u8], nonce_bytes: &[u8]) -> Vec<u8> {
+	let enc_key = Key::from_slice(&key.as_bytes()[..32]);
 	let aead = XChaCha20Poly1305::new(enc_key);
 
-	aead.encrypt(nonce, bytes).unwrap()
+	aead.encrypt(&XNonce::from_slice(nonce_bytes), bytes)
+		.unwrap()
 }
 
 /// Decrypt a byte array using the vault's key.
@@ -176,13 +199,29 @@ pub fn encrypt_bytes(key: String, bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
 ///
 /// * `bytes` - The bytes to decrypt.
 ///
-/// * `nonce_bytes` - The nonce to use.
-pub fn decrypt_bytes(key: String, bytes: &[u8], nonce_bytes: &[u8; 24]) -> Vec<u8> {
-	let enc_key = Key::from_slice(key.as_bytes());
+/// * `nonce` - The nonce to use.
+pub fn decrypt_bytes(key: String, bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
+	let enc_key = Key::from_slice(&key.as_bytes()[..32]);
 	let aead = XChaCha20Poly1305::new(enc_key);
-	let nonce = XNonce::from_slice(nonce_bytes);
 
 	aead.decrypt(nonce, bytes).unwrap()
+}
+
+/// Decrypt a secret from the vault.
+///
+/// # Arguments
+///
+/// * `key` - The vault's key.
+///
+/// * `encrypted_serialised` - The bytes of the encrypted secret.
+///
+/// * `nonce_bytes` - The bytes of the nonce used to encrypt the secret.
+pub fn decrypt_secret(key: String, encrypted_serialised: Vec<u8>, nonce_bytes: Vec<u8>) -> Secret {
+	// let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
+	let nonce = XNonce::from_slice(&nonce_bytes);
+	let decrypted_serialised = decrypt_bytes(key, &encrypted_serialised, &nonce);
+	let decrypted: Secret = bincode::deserialize(&decrypted_serialised).unwrap();
+	decrypted
 }
 
 impl Vault {
@@ -191,17 +230,17 @@ impl Vault {
 	/// # Arguments
 	///
 	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-	pub fn deduplicate_entries(&mut self, ignore_names: bool) -> &mut [Entry] {
-		self.entries.sort_by_cached_key(|x| x.last_modified);
+	pub fn deduplicate_entries(&mut self, ignore_names: bool) -> &mut [(Entry, Vec<u8>)] {
+		self.entries.sort_by_cached_key(|x| x.0.last_modified);
 		match ignore_names {
 			true => {
 				self.entries
-					.partition_dedup_by(|a, b| a.contents == b.contents)
+					.partition_dedup_by(|a, b| a.0.hash == b.0.hash)
 					.1
 			}
 			false => {
 				self.entries
-					.partition_dedup_by(|a, b| a.name == b.name && a.contents == b.contents)
+					.partition_dedup_by(|a, b| a.0.name == b.0.name && a.0.hash == b.0.hash)
 					.1
 			}
 		}
@@ -212,8 +251,10 @@ impl Vault {
 	/// # Arguments
 	///
 	/// * `item` - The entry to be added.
-	pub fn add_entry(&mut self, item: Entry) {
-		self.entries.push(item);
+	///
+	/// * `nonce` - The nonce used when encrypting the entry.
+	pub fn add_entry(&mut self, item: Entry, nonce: Vec<u8>) {
+		self.entries.push((item, nonce));
 	}
 
 	/// Remove an entry from a vault.
@@ -222,7 +263,21 @@ impl Vault {
 	///
 	/// * `item` - The entry to be removed.
 	pub fn remove_entry(&mut self, item: &Entry) {
-		self.entries = self.entries.drain_filter(|x| x.id == item.id).collect();
+		self.entries = self.entries.drain_filter(|x| x.0.id == item.id).collect();
+	}
+
+	/// Encrypt an entry into the vault.
+	///
+	/// # Arguments
+	///
+	/// * `self` - The vault.
+	///
+	/// * `item` - The secret to encrypt.
+	pub fn encrypt_secret(&mut self, item: &mut Secret) -> Vec<u8> {
+		let serialised: Vec<u8> = bincode::serialize(&item).unwrap();
+		let encrypted_serialised = encrypt_bytes(&self.key, &serialised, &item.nonce);
+		self.entries.push((item.clone().entry, item.clone().nonce));
+		encrypted_serialised
 	}
 }
 
