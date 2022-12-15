@@ -332,7 +332,7 @@ pub fn correct_horse_battery_staple(
 						true => {
 							let mut randomly_selected_word = String::new();
 							loop {
-								if randomly_selected_word.len() > 0
+								if !randomly_selected_word.is_empty()
 									&& randomly_selected_word.len() <= characters_remaining - 3
 								{
 									match uppercase_letters && lowercase_letters {
