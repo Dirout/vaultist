@@ -619,7 +619,7 @@
 		.hash_password(password.as_bytes(), <span class="kw-2">&amp;</span>salt)
 		.unwrap()
 		.to_string();
-	<span class="kw">return </span>(key, salt);
+	(key, salt)
 }
 
 <span class="doccomment">/// Encrypt a byte array using the vault&#39;s key.
@@ -635,7 +635,7 @@
 	<span class="kw">let </span>enc_key = Key::from_slice(<span class="kw-2">&amp;</span>key.as_bytes()[..<span class="number">32</span>]);
 	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
 
-	aead.encrypt(<span class="kw-2">&amp;</span>XNonce::from_slice(nonce_bytes), bytes)
+	aead.encrypt(XNonce::from_slice(nonce_bytes), bytes)
 		.unwrap()
 }
 
@@ -667,7 +667,7 @@
 </span><span class="kw">pub fn </span>decrypt_secret(key: String, encrypted_serialised: Vec&lt;u8&gt;, nonce_bytes: Vec&lt;u8&gt;) -&gt; Secret {
 	<span class="comment">// let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
 	</span><span class="kw">let </span>nonce = XNonce::from_slice(<span class="kw-2">&amp;</span>nonce_bytes);
-	<span class="kw">let </span>decrypted_serialised = decrypt_bytes(key, <span class="kw-2">&amp;</span>encrypted_serialised, <span class="kw-2">&amp;</span>nonce);
+	<span class="kw">let </span>decrypted_serialised = decrypt_bytes(key, <span class="kw-2">&amp;</span>encrypted_serialised, nonce);
 	<span class="kw">let </span>decrypted: Secret = bincode::deserialize(<span class="kw-2">&amp;</span>decrypted_serialised).unwrap();
 	decrypted
 }
