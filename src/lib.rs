@@ -72,8 +72,8 @@ pub struct Vault {
 	pub salt: Vec<u8>,
 	/// The key of the vault
 	pub key: String,
-	/// The entries (and the nonces used to encrypt them) within the vault
-	pub entries: Vec<(Entry, Vec<u8>)>,
+	/// The entries representing the secrets (and the nonces used to encrypt them) within the vault
+	pub items: Vec<(Entry, Vec<u8>)>,
 }
 
 #[derive(
@@ -140,22 +140,22 @@ pub fn generate_nonce() -> XNonce {
 	XChaCha20Poly1305::generate_nonce(&mut rand_core::OsRng)
 }
 
-/// Generate the vault's key from a user-supplied password.
+/// Create a new vault from a user-supplied password.
 ///
 /// # Arguments
 ///
 /// * `password` - The user-supplied password.
-pub fn generate_vault_from_password(password: String) -> Vault {
+pub fn create_vault_from_password(password: String) -> Vault {
 	let salt = argon2::password_hash::SaltString::generate(&mut rand_core::OsRng);
-	let password_and_salt = generate_key_from_password_and_salt(password, &salt);
+	let key_and_salt = generate_key_from_password_and_salt(password, &salt);
 	return Vault {
 		salt: salt.as_bytes().to_owned(),
-		key: password_and_salt.0,
-		entries: Vec::new(),
+		key: key_and_salt.0,
+		items: Vec::new(),
 	};
 }
 
-/// Generate the vault's key from a user-supplied password and a pre-generated salt.
+/// Generate a vault's key from a user-supplied password and a pre-generated salt.
 ///
 /// # Arguments
 ///
@@ -174,11 +174,11 @@ pub fn generate_key_from_password_and_salt(
 	(key, salt)
 }
 
-/// Encrypt a byte array using the vault's key.
+/// Encrypt a byte array using a vault's key.
 ///
 /// # Arguments
 ///
-/// * `key` - The vault's key.
+/// * `key` - A vault's key.
 ///
 /// * `bytes` - The bytes to encrypt.
 ///
@@ -225,45 +225,41 @@ pub fn decrypt_secret(key: String, encrypted_serialised: Vec<u8>, nonce_bytes: V
 }
 
 impl Vault {
-	/// Sorts entries by their last modified date & time, and then deduplicates entries which have contents (and, optionally, names) in common.
+	/// Sorts entries by their last modified date & time, and then deduplicates items which have contents (and, optionally, names) in common.
 	///
 	/// # Arguments
 	///
 	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-	pub fn deduplicate_entries(&mut self, ignore_names: bool) -> &mut [(Entry, Vec<u8>)] {
-		self.entries.sort_by_cached_key(|x| x.0.last_modified);
+	pub fn deduplicate_items(&mut self, ignore_names: bool) -> &mut [(Entry, Vec<u8>)] {
+		self.items.sort_by_cached_key(|x| x.0.last_modified);
 		match ignore_names {
-			true => {
-				self.entries
-					.partition_dedup_by(|a, b| a.0.hash == b.0.hash)
-					.1
-			}
+			true => self.items.partition_dedup_by(|a, b| a.0.hash == b.0.hash).1,
 			false => {
-				self.entries
+				self.items
 					.partition_dedup_by(|a, b| a.0.name == b.0.name && a.0.hash == b.0.hash)
 					.1
 			}
 		}
 	}
 
-	/// Adds an entry into a vault.
+	/// Adds an item into a vault.
 	///
 	/// # Arguments
 	///
-	/// * `item` - The entry to be added.
+	/// * `entry` - The entry to be added.
 	///
-	/// * `nonce` - The nonce used when encrypting the entry.
-	pub fn add_entry(&mut self, item: Entry, nonce: Vec<u8>) {
-		self.entries.push((item, nonce));
+	/// * `nonce` - The nonce used when encrypting the secret.
+	pub fn add_item(&mut self, entry: Entry, nonce: Vec<u8>) {
+		self.items.push((entry, nonce));
 	}
 
-	/// Remove an entry from a vault.
+	/// Remove an item from a vault.
 	///
 	/// # Arguments
 	///
-	/// * `item` - The entry to be removed.
-	pub fn remove_entry(&mut self, item: &Entry) {
-		self.entries = self.entries.drain_filter(|x| x.0.id == item.id).collect();
+	/// * `entry` - The entry to be removed.
+	pub fn remove_item(&mut self, entry: &Entry) {
+		self.items = self.items.drain_filter(|x| x.0.id == entry.id).collect();
 	}
 
 	/// Encrypt an entry into the vault.
@@ -276,7 +272,7 @@ impl Vault {
 	pub fn encrypt_secret(&mut self, item: &mut Secret) -> Vec<u8> {
 		let serialised: Vec<u8> = bincode::serialize(&item).unwrap();
 		let encrypted_serialised = encrypt_bytes(&self.key, &serialised, &item.nonce);
-		self.entries.push((item.clone().entry, item.clone().nonce));
+		self.add_item(item.clone().entry, item.clone().nonce);
 		encrypted_serialised
 	}
 }

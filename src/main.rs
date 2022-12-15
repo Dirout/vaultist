@@ -70,13 +70,13 @@ lazy_static! {
 		.arg(arg!(-c --conditions "Prints conditions information")))
 	.subcommand(Command::new("new").about("Create a new vault using a user-supplied password.")
 		.arg(arg!(PATH: "Where to store the vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("add").about("Adds a new entry to a vault")
+	.subcommand(Command::new("add").about("Adds a new item to a vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("see").about("View an entry in the vault")
+	.subcommand(Command::new("see").about("View an item in the vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("change").about("Modify an entry in the vault")
+	.subcommand(Command::new("change").about("Modify an item in the vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("remove").about("Removes an entry in the vault")
+	.subcommand(Command::new("remove").about("Removes an item in the vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
 	.subcommand(Command::new("deduplicate").about("Removes all duplicate entries in the vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
@@ -148,19 +148,19 @@ fn main() {
 			new_vault(new_matches);
 		}
 		Some(("add", add_matches)) => {
-			add_entry(add_matches);
+			add_item(add_matches);
 		}
 		Some(("see", see_matches)) => {
-			see_entry(see_matches);
+			see_item(see_matches);
 		}
 		Some(("change", change_matches)) => {
-			change_entry(change_matches);
+			change_item(change_matches);
 		}
 		Some(("remove", remove_matches)) => {
-			remove_entry(remove_matches);
+			remove_item(remove_matches);
 		}
 		Some(("deduplicate", deduplicate_matches)) => {
-			deduplicate_entries(deduplicate_matches);
+			deduplicate_items(deduplicate_matches);
 		}
 		Some(("generate", generate_matches)) => {
 			generate_passwords(generate_matches);
@@ -214,7 +214,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 		"❌ Password could not be confirmed."
 	);
 
-	let salt_and_key = keywi::generate_vault_from_password(confirm_attempt_password);
+	let new_vault = keywi::create_vault_from_password(confirm_attempt_password);
 	let verify_attempt_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -225,7 +225,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 		argon2::Argon2::default()
 			.verify_password(
 				verify_attempt_password.as_bytes(),
-				&PasswordHash::new(&salt_and_key.key).unwrap()
+				&PasswordHash::new(&new_vault.key).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not create a secure vault with that password."
@@ -233,11 +233,9 @@ fn new_vault(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	// let repo = git2::Repository::init(vault_path).unwrap();
-	// TODO: Write key to file, then commit
 	write_file(
 		path_buf.join(".keywi-vault"),
-		&bincode::serialize(&salt_and_key).unwrap(),
+		&bincode::serialize(&new_vault).unwrap(),
 	);
 
 	// Show how long it took to perform operation
@@ -250,12 +248,12 @@ fn new_vault(matches: &clap::ArgMatches) {
 	.unwrap();
 }
 
-/// Adds a new entry to a vault.
+/// Adds a new item to a vault.
 ///
 /// # Arguments
 ///
 /// * `PATH` - Path to a vault in the filesystem (required).
-fn add_entry(matches: &clap::ArgMatches) {
+fn add_item(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
 	let stdin_lock = stdin.lock();
@@ -298,25 +296,25 @@ fn add_entry(matches: &clap::ArgMatches) {
 		.interact_text_on(&Term::buffered_stdout())
 		.unwrap();
 	println!("📝 Provide the value of \'{entry_name}\' … ");
-	let entry_contents = edit::edit("").unwrap();
+	let secret_contents = edit::edit("").unwrap();
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	let mut hasher = Blake2bVar::new(64).unwrap();
-	hasher.update(entry_contents.as_bytes());
-	let mut entry_hash = [0u8; 64];
-	hasher.finalize_variable(&mut entry_hash).unwrap();
+	hasher.update(secret_contents.as_bytes());
+	let mut content_hash = [0u8; 64];
+	hasher.finalize_variable(&mut content_hash).unwrap();
 
 	let new_entry = keywi::Entry {
 		name: entry_name,
-		hash: entry_hash.to_vec(),
+		hash: content_hash.to_vec(),
 		id: Uuid::new_v4(),
 		last_modified: chrono::offset::Utc::now(),
 	};
 	let nonce = keywi::generate_nonce();
 	let mut new_secret = keywi::Secret {
 		entry: new_entry.clone(),
-		contents: entry_contents.into_bytes(),
+		contents: secret_contents.into_bytes(),
 		nonce: nonce.to_vec(),
 	};
 	let encrypted_secret = deserialised_vault.encrypt_secret(&mut new_secret);
@@ -325,7 +323,6 @@ fn add_entry(matches: &clap::ArgMatches) {
 		&encrypted_secret,
 	);
 
-	deserialised_vault.add_entry(new_entry.clone(), nonce.to_vec());
 	write_file(
 		path_buf.join(".keywi-vault"),
 		&bincode::serialize(&deserialised_vault).unwrap(),
@@ -357,12 +354,12 @@ fn add_entry(matches: &clap::ArgMatches) {
 	.unwrap();
 }
 
-/// View an entry in the vault.
+/// View an item in the vault.
 ///
 /// # Arguments
 ///
 /// * `PATH` - Path to a vault in the filesystem (required).
-fn see_entry(matches: &clap::ArgMatches) {
+fn see_item(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
 	let stdin_lock = stdin.lock();
@@ -410,17 +407,14 @@ fn see_entry(matches: &clap::ArgMatches) {
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, id, last_modified]);
 
-	let entry_query: String = Input::new()
+	let search_query: String = Input::new()
 		.with_prompt("❓ Search for the secret you're trying to view")
 		.allow_empty(false)
 		.interact_text_on(&Term::buffered_stdout())
 		.unwrap();
-	let query = query_parser.parse_query(&entry_query).unwrap();
+	let query = query_parser.parse_query(&search_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
-		.search(
-			&query,
-			&TopDocs::with_limit(deserialised_vault.entries.len()),
-		)
+		.search(&query, &TopDocs::with_limit(deserialised_vault.items.len()))
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
@@ -446,11 +440,6 @@ fn see_entry(matches: &clap::ArgMatches) {
 		i += 1;
 	}
 
-	// writeln!(
-	// 	buf_out,
-	// 	"❓ Select (by number) the secret you're trying to view: "
-	// );
-
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
 	let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
 		.items(&result_options_keys)
@@ -461,8 +450,8 @@ fn see_entry(matches: &clap::ArgMatches) {
 		.unwrap()
 		.unwrap();
 
-	let deserialised_vault_entries_clone = deserialised_vault.entries.clone();
-	let selected_entry = deserialised_vault_entries_clone
+	let deserialised_vault_items_clone = deserialised_vault.items.clone();
+	let selected_item = deserialised_vault_items_clone
 		.iter()
 		.filter_map(|val| {
 			if val.0.id == *result_options.values().nth(selection).unwrap() {
@@ -474,53 +463,16 @@ fn see_entry(matches: &clap::ArgMatches) {
 		.last()
 		.unwrap();
 
-	// let matching_files = glob::glob(
-	// 	&(path_buf.to_str().unwrap().to_owned() + &format!("/**/*{}*.keywi", entry_name)),
-	// )
-	// .unwrap()
-	// .filter_map(Result::ok);
-	// let matching_files_count = matching_files.count();
-	// let entry_file_name = if matching_files_count == 1 {
-	// 	matching_files.last().unwrap()
-	// } else {
-
-	// 	let mut i: i32 = 0;
-	// 	for entry_file in matching_files {
-	// 		let entry_file_metadata = std::fs::metadata(entry_file).unwrap();
-	// 		let entry_file_modified = if entry_file_metadata.modified().is_ok() {
-	// 			let entry_file_modified_datetime: chrono::DateTime<chrono::Utc> =
-	// 				chrono::DateTime::from(entry_file_metadata.modified().unwrap());
-	// 			format!(
-	// 				"\t(last modified: {})",
-	// 				entry_file_modified_datetime.to_rfc2822()
-	// 			)
-	// 		} else {
-	// 			String::new()
-	// 		};
-	// 		write!(
-	// 			buf_out,
-	// 			"\t{}. \'{}\'{}",
-	// 			i,
-	// 			entry_file.file_stem().unwrap().to_str().unwrap(),
-	// 			entry_file_modified
-	// 		);
-	// 		i += 1;
-	// 	}
-	// 	let mut entry_num = String::new();
-	// 	buf_in.read_line(&mut entry_num);
-	// 	matching_files.nth(str::parse(&entry_num).unwrap()).unwrap()
-	// };
-
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 	let entry_nonce_map: HashMap<keywi::Entry, Vec<u8>> =
-		deserialised_vault.entries.into_iter().collect();
-	let entry_nonce = entry_nonce_map.get(&selected_entry.0).unwrap();
-	let encrypted_entry =
-		read_file(path_buf.join(filenamify(selected_entry.0.id.to_string() + ".keywi")));
+		deserialised_vault.items.into_iter().collect();
+	let item_nonce = entry_nonce_map.get(&selected_item.0).unwrap();
+	let encrypted_secret =
+		read_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".keywi")));
 	let decrypted_secret = keywi::decrypt_secret(
 		deserialised_vault.key,
-		encrypted_entry,
-		entry_nonce.to_owned(),
+		encrypted_secret,
+		item_nonce.to_owned(),
 	);
 	writeln!(
 		buf_out,
@@ -543,12 +495,12 @@ fn see_entry(matches: &clap::ArgMatches) {
 	.unwrap();
 }
 
-/// Modify an entry in the vault.
+/// Modify an item in the vault.
 ///
 /// # Arguments
 ///
 /// * `PATH` - Path to a vault in the filesystem (required).
-fn change_entry(matches: &clap::ArgMatches) {
+fn change_item(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
 	let stdin_lock = stdin.lock();
@@ -587,7 +539,6 @@ fn change_entry(matches: &clap::ArgMatches) {
 
 	let mut schema_builder = Schema::builder();
 	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let contents = schema_builder.add_text_field("body", TEXT);
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
 	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
 	let schema = schema_builder.build();
@@ -595,19 +546,16 @@ fn change_entry(matches: &clap::ArgMatches) {
 		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
-	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
+	let query_parser = QueryParser::for_index(&index, vec![name, id, last_modified]);
 
-	let entry_query: String = Input::new()
+	let search_query: String = Input::new()
 		.with_prompt("❓ Search for the secret you're trying to modify: ")
 		.allow_empty(false)
 		.interact_text_on(&Term::buffered_stdout())
 		.unwrap();
-	let query = query_parser.parse_query(&entry_query).unwrap();
+	let query = query_parser.parse_query(&search_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
-		.search(
-			&query,
-			&TopDocs::with_limit(deserialised_vault.entries.len()),
-		)
+		.search(&query, &TopDocs::with_limit(deserialised_vault.items.len()))
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
@@ -642,11 +590,6 @@ fn change_entry(matches: &clap::ArgMatches) {
 		i += 1;
 	}
 
-	// writeln!(
-	// 	buf_out,
-	// 	"❓ Select (by number) the secret you're trying to modify: "
-	// );
-
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
 	let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
 		.items(&result_options_keys)
@@ -657,8 +600,8 @@ fn change_entry(matches: &clap::ArgMatches) {
 		.unwrap()
 		.unwrap();
 
-	let selected_entry = deserialised_vault
-		.entries
+	let selected_item = deserialised_vault
+		.items
 		.iter()
 		.filter_map(|val| {
 			if val.0.id == *result_options.values().nth(selection).unwrap() {
@@ -670,13 +613,13 @@ fn change_entry(matches: &clap::ArgMatches) {
 		.last()
 		.unwrap();
 
-	let encrypted_entry = read_file(path_buf.join(filenamify(
-		selected_entry.clone().0.id.to_string() + ".keywi",
+	let encrypted_secret = read_file(path_buf.join(filenamify(
+		selected_item.clone().0.id.to_string() + ".keywi",
 	)));
 	let decrypted_secret = keywi::decrypt_secret(
 		deserialised_vault.clone().key,
-		encrypted_entry,
-		selected_entry.clone().1,
+		encrypted_secret,
+		selected_item.clone().1,
 	);
 
 	writeln!(
@@ -693,25 +636,25 @@ fn change_entry(matches: &clap::ArgMatches) {
 		decrypted_secret.entry.name
 	)
 	.unwrap();
-	let new_entry_contents = edit::edit(decrypted_secret.clone().contents).unwrap();
+	let new_secret_contents = edit::edit(decrypted_secret.clone().contents).unwrap();
 
 	let mut hasher = Blake2bVar::new(64).unwrap();
-	hasher.update(new_entry_contents.as_bytes());
-	let mut entry_hash = [0u8; 64];
-	hasher.finalize_variable(&mut entry_hash).unwrap();
+	hasher.update(new_secret_contents.as_bytes());
+	let mut secret_hash = [0u8; 64];
+	hasher.finalize_variable(&mut secret_hash).unwrap();
 
 	let new_entry = keywi::Entry {
 		name: new_entry_name,
-		hash: entry_hash.to_vec(),
+		hash: secret_hash.to_vec(),
 		id: decrypted_secret.entry.id,
 		last_modified: chrono::offset::Utc::now(),
 	};
 	let entry_nonce_map: HashMap<keywi::Entry, Vec<u8>> =
-		deserialised_vault.entries.clone().into_iter().collect();
+		deserialised_vault.items.clone().into_iter().collect();
 	let entry_nonce = entry_nonce_map.get(&new_entry).unwrap();
 	let mut new_secret = keywi::Secret {
 		entry: new_entry.clone(),
-		contents: new_entry_contents.into_bytes(),
+		contents: new_secret_contents.into_bytes(),
 		nonce: entry_nonce.to_owned(),
 	};
 
@@ -732,12 +675,12 @@ fn change_entry(matches: &clap::ArgMatches) {
 	.unwrap();
 }
 
-/// Removes an entry in the vault.
+/// Removes an item in the vault.
 ///
 /// # Arguments
 ///
 /// * `PATH` - Path to a vault in the filesystem (required)
-fn remove_entry(matches: &clap::ArgMatches) {
+fn remove_item(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
 	let stdin_lock = stdin.lock();
@@ -776,7 +719,6 @@ fn remove_entry(matches: &clap::ArgMatches) {
 
 	let mut schema_builder = Schema::builder();
 	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let contents = schema_builder.add_text_field("body", TEXT);
 	let id = schema_builder.add_text_field("id", TEXT | STORED);
 	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
 	let schema = schema_builder.build();
@@ -784,19 +726,16 @@ fn remove_entry(matches: &clap::ArgMatches) {
 		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
-	let query_parser = QueryParser::for_index(&index, vec![name, contents, id, last_modified]);
+	let query_parser = QueryParser::for_index(&index, vec![name, id, last_modified]);
 
-	let entry_query: String = Input::new()
+	let search_query: String = Input::new()
 		.with_prompt("❓ Search for the secret you're trying to remove")
 		.allow_empty(false)
 		.interact_text_on(&Term::buffered_stdout())
 		.unwrap();
-	let query = query_parser.parse_query(&entry_query).unwrap();
+	let query = query_parser.parse_query(&search_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
-		.search(
-			&query,
-			&TopDocs::with_limit(deserialised_vault.entries.len()),
-		)
+		.search(&query, &TopDocs::with_limit(deserialised_vault.items.len()))
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
@@ -831,11 +770,6 @@ fn remove_entry(matches: &clap::ArgMatches) {
 		i += 1;
 	}
 
-	// writeln!(
-	// 	buf_out,
-	// 	"❓ Select (by number) the secret you're trying to modify: "
-	// );
-
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
 	let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
 		.items(&result_options_keys)
@@ -846,8 +780,8 @@ fn remove_entry(matches: &clap::ArgMatches) {
 		.unwrap()
 		.unwrap();
 
-	let copy_of_entries = deserialised_vault.entries.clone();
-	let selected_entry = copy_of_entries
+	let copy_of_items = deserialised_vault.items.clone();
+	let selected_item = copy_of_items
 		.iter()
 		.filter_map(|val| {
 			if val.0.id == *result_options.values().nth(selection).unwrap() {
@@ -861,8 +795,8 @@ fn remove_entry(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	deserialised_vault.remove_entry(&selected_entry.0);
-	std::fs::remove_file(path_buf.join(filenamify(selected_entry.0.id.to_string() + ".keywi")))
+	deserialised_vault.remove_item(&selected_item.0);
+	std::fs::remove_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".keywi")))
 		.unwrap();
 
 	// Show how long it took to perform operation
@@ -875,14 +809,14 @@ fn remove_entry(matches: &clap::ArgMatches) {
 	.unwrap();
 }
 
-/// Removes all duplicate entries in the vault.
+/// Removes all duplicate items in the vault.
 ///
 /// # Arguments
 ///
 /// * `PATH` - Path to a vault in the filesystem (required)
 ///
 /// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-fn deduplicate_entries(matches: &clap::ArgMatches) {
+fn deduplicate_items(matches: &clap::ArgMatches) {
 	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
 	let stdin_lock = stdin.lock();
@@ -926,16 +860,16 @@ fn deduplicate_entries(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	let duplicate_entries = deserialised_vault.deduplicate_entries(ignore_names);
-	for entry in duplicate_entries {
-		std::fs::remove_file(path_buf.join(filenamify(entry.0.id.to_string() + ".keywi"))).unwrap();
+	let duplicate_items = deserialised_vault.deduplicate_items(ignore_names);
+	for item in duplicate_items {
+		std::fs::remove_file(path_buf.join(filenamify(item.0.id.to_string() + ".keywi"))).unwrap();
 	}
 
 	// Show how long it took to perform operation
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Removed duplicate vault entries in {} seconds.",
+		"\n⏰ Removed duplicate vault items in {} seconds.",
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();
