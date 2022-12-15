@@ -171,7 +171,7 @@ pub fn generate_key_from_password_and_salt(
 		.hash_password(password.as_bytes(), &salt)
 		.unwrap()
 		.to_string();
-	return (key, salt);
+	(key, salt)
 }
 
 /// Encrypt a byte array using the vault's key.
@@ -187,7 +187,7 @@ pub fn encrypt_bytes(key: &String, bytes: &[u8], nonce_bytes: &[u8]) -> Vec<u8> 
 	let enc_key = Key::from_slice(&key.as_bytes()[..32]);
 	let aead = XChaCha20Poly1305::new(enc_key);
 
-	aead.encrypt(&XNonce::from_slice(nonce_bytes), bytes)
+	aead.encrypt(XNonce::from_slice(nonce_bytes), bytes)
 		.unwrap()
 }
 
@@ -219,7 +219,7 @@ pub fn decrypt_bytes(key: String, bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
 pub fn decrypt_secret(key: String, encrypted_serialised: Vec<u8>, nonce_bytes: Vec<u8>) -> Secret {
 	// let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
 	let nonce = XNonce::from_slice(&nonce_bytes);
-	let decrypted_serialised = decrypt_bytes(key, &encrypted_serialised, &nonce);
+	let decrypted_serialised = decrypt_bytes(key, &encrypted_serialised, nonce);
 	let decrypted: Secret = bincode::deserialize(&decrypted_serialised).unwrap();
 	decrypted
 }

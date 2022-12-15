@@ -301,7 +301,7 @@ fn add_entry(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	let mut hasher = Blake2bVar::new(64).unwrap();
-	hasher.update(&entry_contents.as_bytes());
+	hasher.update(entry_contents.as_bytes());
 	let mut entry_hash = [0u8; 64];
 	hasher.finalize_variable(&mut entry_hash).unwrap();
 
@@ -339,8 +339,8 @@ fn add_entry(matches: &clap::ArgMatches) {
 	index_writer
 		.add_document(doc!(
 			name => new_entry.clone().name,
-			id => new_entry.clone().id.to_string(),
-			last_modified => new_entry.clone().last_modified.to_rfc2822(),
+			id => new_entry.id.to_string(),
+			last_modified => new_entry.last_modified.to_rfc2822(),
 		))
 		.unwrap();
 	index_writer.commit().unwrap();
@@ -680,7 +680,7 @@ fn change_entry(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"📝 Provide the new name of \'{}\' … ",
-		decrypted_secret.clone().entry.name
+		decrypted_secret.entry.name
 	)
 	.unwrap();
 	let new_entry_name = edit::edit(decrypted_secret.clone().entry.name).unwrap();
@@ -688,20 +688,20 @@ fn change_entry(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"📝 Provide the new contents of \'{}\' … ",
-		decrypted_secret.clone().entry.name
+		decrypted_secret.entry.name
 	)
 	.unwrap();
 	let new_entry_contents = edit::edit(decrypted_secret.clone().contents).unwrap();
 
 	let mut hasher = Blake2bVar::new(64).unwrap();
-	hasher.update(&new_entry_contents.as_bytes());
+	hasher.update(new_entry_contents.as_bytes());
 	let mut entry_hash = [0u8; 64];
 	hasher.finalize_variable(&mut entry_hash).unwrap();
 
 	let new_entry = keywi::Entry {
 		name: new_entry_name,
 		hash: entry_hash.to_vec(),
-		id: decrypted_secret.clone().entry.id,
+		id: decrypted_secret.entry.id,
 		last_modified: chrono::offset::Utc::now(),
 	};
 	let entry_nonce_map: HashMap<keywi::Entry, Vec<u8>> =
