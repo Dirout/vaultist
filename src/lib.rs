@@ -15,8 +15,8 @@
 #![cfg_attr(feature = "dox", feature(doc_cfg))]
 #![allow(clippy::needless_doctest_main)]
 #![doc(
-	html_logo_url = "https://github.com/Dirout/vaultist/raw/master/branding/icon.png",
-	html_favicon_url = "https://github.com/Dirout/vaultist/raw/master/branding/icon.png"
+	html_logo_url = "https://github.com/Dirout/vaultist/raw/master/branding/app_icon.png",
+	html_favicon_url = "https://github.com/Dirout/vaultist/raw/master/branding/app_icon.png"
 )]
 #![feature(drain_filter)]
 #![feature(slice_partition_dedup)]
@@ -449,7 +449,11 @@ pub fn correct_horse_battery_staple(
 	result
 }
 
-/// Analyses whether or not a password is sufficiently resistant against an attack. Returns a tuple with a boolean and a string. The boolean is true if the password is sufficiently resistant against an attack, false otherwise. The string is a message that explains whether the password is or is not sufficiently resistant against an attack, and, if not, some suggestions to give.
+/// Analyses whether or not a password is sufficiently resistant against an attack.
+///
+/// Returns a tuple with a boolean and a string. The boolean is true if the password is sufficiently resistant against an attack, false otherwise.
+///
+/// The string is a message that explains whether the password is or is not sufficiently resistant against an attack, and, if not, some suggestions to give.
 ///
 /// # Arguments
 ///

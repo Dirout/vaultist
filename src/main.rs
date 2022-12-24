@@ -17,8 +17,8 @@
 #![cfg_attr(feature = "dox", feature(doc_cfg))]
 #![allow(clippy::needless_doctest_main)]
 #![doc(
-	html_logo_url = "https://github.com/Dirout/vaultist/raw/master/branding/icon.png",
-	html_favicon_url = "https://github.com/Dirout/vaultist/raw/master/branding/icon.png"
+	html_logo_url = "https://github.com/Dirout/vaultist/raw/master/branding/app_icon.png",
+	html_favicon_url = "https://github.com/Dirout/vaultist/raw/master/branding/app_icon.png"
 )]
 #![feature(panic_info_message)]
 #![feature(drain_filter)]
