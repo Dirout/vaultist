@@ -20,12 +20,10 @@ jobs:
           install: >-
             git
             base-devel
-            glib2
-            glib2-devel
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-gtk4
+            mingw-w64-x86_64-openssl
       - name: Setup environment variables
         run: |
           echo "../../_temp/msys/msys64/mingw64/bin" >> $GITHUB_PATH
@@ -50,6 +48,7 @@ jobs:
       - name: Prepare Vaultist for upload
         run: |
           cd ./target/x86_64-pc-windows-gnu/release/
+          dir ./target/x86_64-pc-windows-gnu/release/
           tar -czvf x86_64-vaultist.win32.zip `
           vaultist.exe `
           vaultist.dll `

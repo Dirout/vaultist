@@ -362,7 +362,7 @@ pub fn correct_horse_battery_staple(
 									}
 									characters_remaining -= randomly_selected_word.len();
 									break;
-								} else if randomly_selected_word.len() <= 0
+								} else if randomly_selected_word.len() == 0
 									|| randomly_selected_word.len() >= characters_remaining - 3
 								{
 									randomly_selected_word = if !exclude_similar_characters {

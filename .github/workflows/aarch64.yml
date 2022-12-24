@@ -15,7 +15,7 @@ jobs:
       - name: Install development dependencies
         run: |
           sudo apt-get update > /dev/null
-          sudo apt-get install -qq libgtk-4-1 libgtk-4-common libgtk-4-dev build-essential > /dev/null
+          sudo apt-get install -qq libssl-dev build-essential > /dev/null
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
