@@ -14,7 +14,8 @@ jobs:
         uses: actions/checkout@v3
       - name: Install development dependencies
         run: |
-          brew install openssl > /dev/null
+          brew update > /dev/null
+          brew install openssl openssl@1.1 > /dev/null
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
         with:

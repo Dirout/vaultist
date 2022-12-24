@@ -1,0 +1,85 @@
+on:
+  push:
+    branches:    
+      - 'master'
+
+name: 'Build: macOS (Universal)'
+
+jobs:
+  mac_universal:
+    name: macOS (Universal)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v3
+      - name: Install development dependencies
+        run: |
+          brew update > /dev/null
+          brew install openssl openssl@1.1 > /dev/null
+      - name: Setup Rust toolchain for X86_64
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: x86_64-apple-darwin
+          default: true
+          profile: minimal
+      - name: Setup Rust toolchain for AARCH64
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: aarch64-apple-darwin
+          default: false
+          profile: minimal
+      - name: Build Vaultist for X86_64
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: false
+          command: build
+          args: --release --target x86_64-apple-darwin
+      - name: Build Vaultist for AARCH64
+        run: |
+          SDKROOT=$(xcrun -sdk macosx --show-sdk-path) \
+          MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx --show-sdk-platform-version) \
+          cargo build --release --target=aarch64-apple-darwin
+      - name: Prepare Vaultist for upload
+        run: |
+          lipo -create \
+          -output target/vaultist \
+          target/aarch64-apple-darwin/release/vaultist \
+          target/x86_64-apple-darwin/release/vaultist
+          strip ./target/vaultist
+          chmod +x ./target/vaultist
+
+          cd ./target/x86_64-apple-darwin/release/
+          strip ./vaultist
+          chmod +x ./vaultist
+          tar -cvf x86_64-vaultist.osx.tar \
+          vaultist \
+          libvaultist.dylib \
+          libvaultist.a
+
+          cd ../../aarch64-apple-darwin/release/
+          strip ./vaultist
+          chmod +x ./vaultist
+          tar -cvf aarch64-vaultist.osx.tar \
+          vaultist \
+          libvaultist.dylib \
+          libvaultist.a
+      - name: Upload Vaultist X86_64 build artifacts to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: x86_64-vaultist.osx
+          path: ./target/x86_64-apple-darwin/release/x86_64-vaultist.osx.tar
+          if-no-files-found: error
+      - name: Upload Vaultist ARM64 build artifacts to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: aarch64-vaultist.osx
+          path: ./target/aarch64-apple-darwin/release/aarch64-vaultist.osx.tar
+          if-no-files-found: error
+      - name: Upload Vaultist Universal build artifacts to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: universal-vaultist.osx
+          path: ./target/vaultist
+          if-no-files-found: error

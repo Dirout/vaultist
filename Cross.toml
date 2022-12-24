@@ -6,5 +6,6 @@ pre-build = [
 
 [target.aarch64-apple-darwin]
 pre-build = [
-    "brew install openssl"
+    "brew update",
+    "brew install openssl openssl@1.1"
 ]
