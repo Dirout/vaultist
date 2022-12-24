@@ -25,7 +25,7 @@ jobs:
       - name: Build Vaultist
         uses: actions-rs/cargo@v1
         with:
-          use-cross: true
+          use-cross: false
           command: build
           args: --release --target aarch64-apple-darwin
       - name: Prepare Vaultist for upload
