@@ -12,7 +12,6 @@
 #
 #    You should have received a copy of the GNU Affero General Public License
 #    along with Vaultist.  If not, see <https://www.gnu.org/licenses/>.
-cargo-features = ["strip"]
 [package]
 name = "vaultist"
 version = "0.1.0"
