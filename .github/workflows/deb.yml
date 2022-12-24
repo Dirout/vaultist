@@ -28,14 +28,14 @@ jobs:
         with:
           command: install
           args: cargo-deb
-      - name: Build & package Keywi
+      - name: Build & package Vaultist
         uses: actions-rs/cargo@v1
         with:
           command: deb
           args: --separate-debug-symbols -- --target x86_64-unknown-linux-gnu
-      - name: Upload Keywi build artifact to GitHub
+      - name: Upload Vaultist build artifact to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: x86_64-keywi.deb.gnu+linux
-          path: ./target/debian/keywi_*_amd64.deb
+          name: x86_64-vaultist.deb.gnu+linux
+          path: ./target/debian/vaultist_*_amd64.deb
           if-no-files-found: error

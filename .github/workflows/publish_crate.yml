@@ -25,11 +25,11 @@ jobs:
         with:
           command: login
           args:  ${{ secrets.NEW_CRATES_LOGIN }}
-      - name: Package Keywi
+      - name: Package Vaultist
         uses: actions-rs/cargo@v1
         with:
           command: package
-      - name: Publish Keywi
+      - name: Publish Vaultist
         uses: actions-rs/cargo@v1
         with:
           command: publish

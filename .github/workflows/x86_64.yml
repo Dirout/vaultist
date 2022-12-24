@@ -23,26 +23,26 @@ jobs:
           target: x86_64-unknown-linux-gnu
           default: true
           profile: minimal
-      - name: Build Keywi
+      - name: Build Vaultist
         uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build
           args: --release --target x86_64-unknown-linux-gnu
-      - name: Prepare Keywi for upload
+      - name: Prepare Vaultist for upload
         run: |
           cd ./target/x86_64-unknown-linux-gnu/release/
-          strip -v --strip-all ./keywi
-          strip -v --strip-all ./libkeywi.so
-          strip -v --strip-all ./libkeywi.a
-          chmod +x ./keywi
-          tar -cvf x86_64-keywi.gnu+linux.tar \
-          keywi \
-          libkeywi.so \
-          libkeywi.a
-      - name: Upload Keywi build artifacts to GitHub
+          strip -v --strip-all ./vaultist
+          strip -v --strip-all ./libvaultist.so
+          strip -v --strip-all ./libvaultist.a
+          chmod +x ./vaultist
+          tar -cvf x86_64-vaultist.gnu+linux.tar \
+          vaultist \
+          libvaultist.so \
+          libvaultist.a
+      - name: Upload Vaultist build artifacts to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: x86_64-keywi.gnu+linux
-          path: ./target/x86_64-unknown-linux-gnu/release/x86_64-keywi.gnu+linux.tar
+          name: x86_64-vaultist.gnu+linux
+          path: ./target/x86_64-unknown-linux-gnu/release/x86_64-vaultist.gnu+linux.tar
           if-no-files-found: error

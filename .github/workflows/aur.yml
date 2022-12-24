@@ -58,11 +58,11 @@ jobs:
           chmod 600 /root/.ssh/config
           chmod 400 /root/.ssh/aur
           ssh-keyscan -H aur.archlinux.org >> /root/.ssh/known_hosts
-      - name: Upload Keywi Pacman package
+      - name: Upload Vaultist Pacman package
         uses: actions/upload-artifact@v3
         with:
-          name: x86_64-keywi.pacman
-          path: keywi-*-x86_64.tar.gz
+          name: x86_64-vaultist.pacman
+          path: vaultist-*-x86_64.tar.gz
           if-no-files-found: error
       - name: Prepare to drop out of superuser access
         run: |
@@ -72,13 +72,13 @@ jobs:
           EOT
       - name: Push release details to AUR
         run: |
-          git clone -b master ssh://aur@aur.archlinux.org/keywi-bin.git
+          git clone -b master ssh://aur@aur.archlinux.org/vaultist-bin.git
           git config --global user.name "Emil Sayahi"
           git config --global user.email "limesayahi@gmail.com"
-          chmod 777 keywi-bin
-          cd ./keywi-bin
+          chmod 777 vaultist-bin
+          cd ./vaultist-bin
           cp -avf ../PKGBUILD ./
           su -s /bin/sh nobody -c "makepkg --printsrcinfo" > .SRCINFO
           git add -A
-          git commit -m "Automatically updating Keywi package via GitHub Actions (see repository for release notes)"
+          git commit -m "Automatically updating Vaultist package via GitHub Actions (see repository for release notes)"
           git push origin HEAD:master

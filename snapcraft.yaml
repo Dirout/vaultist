@@ -1,23 +1,23 @@
-#    This file is part of Keywi.
+#    This file is part of Vaultist.
 #
-#    Keywi is free software: you can redistribute it and/or modify
+#    Vaultist is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
 #
-#    Keywi is distributed in the hope that it will be useful,
+#    Vaultist is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU Affero General Public License for more details.
 #
 #    You should have received a copy of the GNU Affero General Public License
-#    along with Keywi.  If not, see <https://www.gnu.org/licenses/>.
-name: keywi
-title: Keywi
+#    along with Vaultist.  If not, see <https://www.gnu.org/licenses/>.
+name: vaultist
+title: Vaultist
 version: git
 summary: Vault of secrets, written in Rust
 description: |
-  Keywi is a vault of secrets, written in Rust.
+  Vaultist is a vault of secrets, written in Rust.
 license: AGPL-3.0
 icon: branding/icon.png
 
@@ -26,12 +26,12 @@ grade: stable
 confinement: strict
 
 parts:
-  keywi:
+  vaultist:
     plugin: rust
     source: .
 
 apps:
-  keywi:
-    command: bin/keywi
+  vaultist:
+    command: bin/vaultist
     plugs:
           - home

@@ -19,24 +19,24 @@ jobs:
           target: x86_64-apple-darwin
           default: true
           profile: minimal
-      - name: Build Keywi
+      - name: Build Vaultist
         uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build
           args: --release --target x86_64-apple-darwin
-      - name: Prepare Keywi for upload
+      - name: Prepare Vaultist for upload
         run: |
           cd ./target/x86_64-apple-darwin/release/
-          strip ./keywi
-          chmod +x ./keywi
-          tar -cvf x86_64-keywi.osx.tar \
-          keywi \
-          libkeywi.dylib \
-          libkeywi.a
-      - name: Upload Keywi build artifacts to GitHub
+          strip ./vaultist
+          chmod +x ./vaultist
+          tar -cvf x86_64-vaultist.osx.tar \
+          vaultist \
+          libvaultist.dylib \
+          libvaultist.a
+      - name: Upload Vaultist build artifacts to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: x86_64-keywi.osx
-          path: ./target/x86_64-apple-darwin/release/x86_64-keywi.osx.tar
+          name: x86_64-vaultist.osx
+          path: ./target/x86_64-apple-darwin/release/x86_64-vaultist.osx.tar
           if-no-files-found: error

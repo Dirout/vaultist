@@ -42,22 +42,22 @@ jobs:
           target: x86_64-pc-windows-gnu
           default: true
           profile: minimal
-      - name: Build Keywi
+      - name: Build Vaultist
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target x86_64-pc-windows-gnu
-      - name: Prepare Keywi for upload
+      - name: Prepare Vaultist for upload
         run: |
           cd ./target/x86_64-pc-windows-gnu/release/
-          tar -czvf x86_64-keywi.win32.zip `
-          keywi.exe `
-          keywi.dll `
-          libkeywi.a `
-          libkeywi.dll.a
-      - name: Upload keywi build artifacts to GitHub
+          tar -czvf x86_64-vaultist.win32.zip `
+          vaultist.exe `
+          vaultist.dll `
+          libvaultist.a `
+          libvaultist.dll.a
+      - name: Upload vaultist build artifacts to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: x86_64-keywi.win32
-          path: ./target/x86_64-pc-windows-gnu/release/x86_64-keywi.win32.zip
+          name: x86_64-vaultist.win32
+          path: ./target/x86_64-pc-windows-gnu/release/x86_64-vaultist.win32.zip
           if-no-files-found: error

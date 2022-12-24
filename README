@@ -1,5 +1,5 @@
-# Keywi
+# Vaultist
 
-Keywi is a vault of secrets, written in Rust.
+Vaultist is a vault of secrets, written in Rust.
 
 LICENSE: AGPL-3.0-or-later

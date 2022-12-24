@@ -39,14 +39,14 @@ jobs:
         with:
           command: rpm
           args: init
-      - name: Build & package Keywi
+      - name: Build & package Vaultist
         uses: actions-rs/cargo@v1
         with:
           command: rpm
           args: build -v
-      - name: Upload Keywi build artifact to GitHub
+      - name: Upload Vaultist build artifact to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: x86_64-keywi.rpm.gnu+linux
-          path: ./target/release/rpmbuild/RPMS/x86_64/keywi-*.x86_64.rpm
+          name: x86_64-vaultist.rpm.gnu+linux
+          path: ./target/release/rpmbuild/RPMS/x86_64/vaultist-*.x86_64.rpm
           if-no-files-found: error

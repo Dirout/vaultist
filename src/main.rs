@@ -1,24 +1,24 @@
 /*
-	This file is part of Keywi.
+	This file is part of Vaultist.
 
-	Keywi is free software: you can redistribute it and/or modify
+	Vaultist is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	Keywi is distributed in the hope that it will be useful,
+	Vaultist is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU Affero General Public License for more details.
 
 	You should have received a copy of the GNU Affero General Public License
-	along with Keywi.  If not, see <https://www.gnu.org/licenses/>.
+	along with Vaultist.  If not, see <https://www.gnu.org/licenses/>.
 */
 #![cfg_attr(feature = "dox", feature(doc_cfg))]
 #![allow(clippy::needless_doctest_main)]
 #![doc(
-	html_logo_url = "https://github.com/Dirout/keywi/raw/master/branding/icon.png",
-	html_favicon_url = "https://github.com/Dirout/keywi/raw/master/branding/icon.png"
+	html_logo_url = "https://github.com/Dirout/vaultist/raw/master/branding/icon.png",
+	html_favicon_url = "https://github.com/Dirout/vaultist/raw/master/branding/icon.png"
 )]
 #![feature(panic_info_message)]
 #![feature(drain_filter)]
@@ -59,11 +59,11 @@ use zxcvbn::zxcvbn;
 static GLOBAL: MiMalloc = MiMalloc;
 
 lazy_static! {
-	/// The command-line interface (CLI) of Keywi
-	static ref MATCHES: ArgMatches = Command::new("Keywi")
+	/// The command-line interface (CLI) of Vaultist
+	static ref MATCHES: ArgMatches = Command::new("Vaultist")
 	.version(crate_version!())
 	.author("Emil Sayahi")
-	.about("Keywi is a tool to store your secrets in a vault, able to be opened by one password as the key.")
+	.about("Vaultist is a tool to store your secrets in a vault, able to be opened by one password as the key.")
 	.subcommand(Command::new("show")
 		.about("Shows information regarding the usage and handling of this software")
 		.arg(arg!(-w --warranty "Prints warranty information"))
@@ -96,7 +96,7 @@ lazy_static! {
 	.get_matches_from(wild::args());
 }
 
-/// The main function of Keywi's CLI
+/// The main function of Vaultist's CLI
 fn main() {
 	let stdout = std::io::stdout();
 	let lock = stdout.lock();
@@ -133,10 +133,10 @@ fn main() {
 	writeln!(
 		buf_out,
 		"
-    Keywi  Copyright (C) 2022-2023  Emil Sayahi
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `keywi show -w'.
+    Vaultist  Copyright (C) 2022-2023  Emil Sayahi
+    This program comes with ABSOLUTELY NO WARRANTY; for details type `vaultist show -w'.
     This is free software, and you are welcome to redistribute it
-    under certain conditions; type `keywi show -c' for details.
+    under certain conditions; type `vaultist show -c' for details.
     "
 	)
 	.unwrap();
@@ -168,7 +168,7 @@ fn main() {
 		Some(("analyse", analyse_matches)) => {
 			analyse_password(analyse_matches);
 		}
-		None => writeln!(buf_out, "Keywi {}", crate_version!()).unwrap(),
+		None => writeln!(buf_out, "Vaultist {}", crate_version!()).unwrap(),
 		_ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
 	}
 }
@@ -214,7 +214,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 		"❌ Password could not be confirmed."
 	);
 
-	let new_vault = keywi::create_vault_from_password(confirm_attempt_password);
+	let new_vault = vaultist::create_vault_from_password(confirm_attempt_password);
 	let verify_attempt_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -234,7 +234,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	write_file(
-		path_buf.join(".keywi-vault"),
+		path_buf.join(".vaultist-vault"),
 		&bincode::serialize(&new_vault).unwrap(),
 	);
 
@@ -272,8 +272,8 @@ fn add_item(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: keywi::Vault =
-		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
+	let mut deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -305,26 +305,26 @@ fn add_item(matches: &clap::ArgMatches) {
 	let mut content_hash = [0u8; 64];
 	hasher.finalize_variable(&mut content_hash).unwrap();
 
-	let new_entry = keywi::Entry {
+	let new_entry = vaultist::Entry {
 		name: entry_name,
 		hash: content_hash.to_vec(),
 		id: Uuid::new_v4(),
 		last_modified: chrono::offset::Utc::now(),
 	};
-	let nonce = keywi::generate_nonce();
-	let mut new_secret = keywi::Secret {
+	let nonce = vaultist::generate_nonce();
+	let mut new_secret = vaultist::Secret {
 		entry: new_entry.clone(),
 		contents: secret_contents.into_bytes(),
 		nonce: nonce.to_vec(),
 	};
 	let encrypted_secret = deserialised_vault.encrypt_secret(&mut new_secret);
 	write_file(
-		path_buf.join(filenamify(new_entry.id.to_string() + ".keywi")),
+		path_buf.join(filenamify(new_entry.id.to_string() + ".vaultist")),
 		&encrypted_secret,
 	);
 
 	write_file(
-		path_buf.join(".keywi-vault"),
+		path_buf.join(".vaultist-vault"),
 		&bincode::serialize(&deserialised_vault).unwrap(),
 	);
 
@@ -378,8 +378,8 @@ fn see_item(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let deserialised_vault: keywi::Vault =
-		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
+	let deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -464,12 +464,12 @@ fn see_item(matches: &clap::ArgMatches) {
 		.unwrap();
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
-	let entry_nonce_map: HashMap<keywi::Entry, Vec<u8>> =
+	let entry_nonce_map: HashMap<vaultist::Entry, Vec<u8>> =
 		deserialised_vault.items.into_iter().collect();
 	let item_nonce = entry_nonce_map.get(&selected_item.0).unwrap();
 	let encrypted_secret =
-		read_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".keywi")));
-	let decrypted_secret = keywi::decrypt_secret(
+		read_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".vaultist")));
+	let decrypted_secret = vaultist::decrypt_secret(
 		deserialised_vault.key,
 		encrypted_secret,
 		item_nonce.to_owned(),
@@ -519,8 +519,8 @@ fn change_item(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: keywi::Vault =
-		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
+	let mut deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -614,9 +614,9 @@ fn change_item(matches: &clap::ArgMatches) {
 		.unwrap();
 
 	let encrypted_secret = read_file(path_buf.join(filenamify(
-		selected_item.clone().0.id.to_string() + ".keywi",
+		selected_item.clone().0.id.to_string() + ".vaultist",
 	)));
-	let decrypted_secret = keywi::decrypt_secret(
+	let decrypted_secret = vaultist::decrypt_secret(
 		deserialised_vault.clone().key,
 		encrypted_secret,
 		selected_item.clone().1,
@@ -643,16 +643,16 @@ fn change_item(matches: &clap::ArgMatches) {
 	let mut secret_hash = [0u8; 64];
 	hasher.finalize_variable(&mut secret_hash).unwrap();
 
-	let new_entry = keywi::Entry {
+	let new_entry = vaultist::Entry {
 		name: new_entry_name,
 		hash: secret_hash.to_vec(),
 		id: decrypted_secret.entry.id,
 		last_modified: chrono::offset::Utc::now(),
 	};
-	let entry_nonce_map: HashMap<keywi::Entry, Vec<u8>> =
+	let entry_nonce_map: HashMap<vaultist::Entry, Vec<u8>> =
 		deserialised_vault.items.clone().into_iter().collect();
 	let entry_nonce = entry_nonce_map.get(&new_entry).unwrap();
-	let mut new_secret = keywi::Secret {
+	let mut new_secret = vaultist::Secret {
 		entry: new_entry.clone(),
 		contents: new_secret_contents.into_bytes(),
 		nonce: entry_nonce.to_owned(),
@@ -661,7 +661,7 @@ fn change_item(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	write_file(
-		path_buf.join(filenamify(new_entry.id.to_string() + ".keywi")),
+		path_buf.join(filenamify(new_entry.id.to_string() + ".vaultist")),
 		&deserialised_vault.encrypt_secret(&mut new_secret),
 	);
 
@@ -699,8 +699,8 @@ fn remove_item(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: keywi::Vault =
-		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
+	let mut deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -796,7 +796,7 @@ fn remove_item(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	deserialised_vault.remove_item(&selected_item.0);
-	std::fs::remove_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".keywi")))
+	std::fs::remove_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".vaultist")))
 		.unwrap();
 
 	// Show how long it took to perform operation
@@ -840,8 +840,8 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: keywi::Vault =
-		bincode::deserialize(&read_file(path_buf.join(".keywi-vault"))).unwrap();
+	let mut deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -862,7 +862,8 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 
 	let duplicate_items = deserialised_vault.deduplicate_items(ignore_names);
 	for item in duplicate_items {
-		std::fs::remove_file(path_buf.join(filenamify(item.0.id.to_string() + ".keywi"))).unwrap();
+		std::fs::remove_file(path_buf.join(filenamify(item.0.id.to_string() + ".vaultist")))
+			.unwrap();
 	}
 
 	// Show how long it took to perform operation
@@ -964,7 +965,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 	for password in generations {
 		writeln!(buf_out, "{}", Colour::Blue.bold().paint(password)).unwrap();
 	}
-	let xkcd_generations = keywi::correct_horse_battery_staple(
+	let xkcd_generations = vaultist::correct_horse_battery_staple(
 		count - num_generations,
 		length,
 		numbers,
@@ -1137,7 +1138,7 @@ fn show(matches: &clap::ArgMatches) {
 	let mut buf_out = BufWriter::new(lock);
 
 	if matches.contains_id("warranty") {
-		// "keywi show -w" was run
+		// "vaultist show -w" was run
 		writeln!(
 			buf_out,
 			"
@@ -1176,7 +1177,7 @@ fn show(matches: &clap::ArgMatches) {
 		)
 		.unwrap();
 	} else if matches.contains_id("conditions") {
-		// "keywi show -c" was run
+		// "vaultist show -c" was run
 		writeln!(
 			buf_out,
 			"
