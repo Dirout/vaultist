@@ -887,8 +887,8 @@
 									}
 									characters_remaining -= randomly_selected_word.len();
 									<span class="kw">break</span>;
-								} <span class="kw">else if </span>randomly_selected_word.len() == <span class="number">0
-									</span>|| randomly_selected_word.len() &gt;= characters_remaining - <span class="number">3
+								} <span class="kw">else if </span>randomly_selected_word.is_empty()
+									|| randomly_selected_word.len() &gt;= characters_remaining - <span class="number">3
 								</span>{
 									randomly_selected_word = <span class="kw">if </span>!exclude_similar_characters {
 										memorable_wordlist::WORDS
