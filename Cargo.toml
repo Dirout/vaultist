@@ -21,7 +21,7 @@ license = "AGPL-3.0-or-later"
 description = "A vault of secrets, written in Rust."
 repository = "https://github.com/Dirout/vaultist"
 homepage = "https://github.com/Dirout/vaultist"
-readme = "README.md"
+readme = "README"
 resolver = "2"
 include = [
     "**/*.rs",

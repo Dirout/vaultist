@@ -26,7 +26,7 @@ jobs:
       - name: Build Vaultist
         uses: actions-rs/cargo@v1
         with:
-          use-cross: false
+          use-cross: true
           command: build
           args: --release --target aarch64-unknown-linux-gnu
       - name: Prepare Vaultist for upload
