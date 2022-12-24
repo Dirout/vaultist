@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["keywi"];
+window.ALL_CRATES = ["vaultist"];
