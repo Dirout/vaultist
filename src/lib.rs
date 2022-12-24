@@ -1,15 +1,15 @@
 /*
-	This file is part of keywi.
-	keywi is free software: you can redistribute it and/or modify
+	This file is part of Keywi.
+	Keywi is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
-	keywi is distributed in the hope that it will be useful,
+	Keywi is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU Affero General Public License for more details.
 	You should have received a copy of the GNU Affero General Public License
-	along with keywi.  If not, see <https://www.gnu.org/licenses/>.
+	along with Keywi.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #![cfg_attr(feature = "dox", feature(doc_cfg))]

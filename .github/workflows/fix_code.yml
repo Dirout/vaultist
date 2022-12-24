@@ -27,7 +27,7 @@ jobs:
           args: --edition --edition-idioms
       - name: Commit changes to code, if any
         run: |
-          git config --global user.name 'keywi'
+          git config --global user.name 'Keywi'
           git config --global user.email 'Dirout@users.noreply.github.com'
           git diff --quiet && git diff --staged --quiet || git commit -am "Automatically apply compiler suggestions"
           git push

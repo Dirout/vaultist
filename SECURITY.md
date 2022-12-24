@@ -1,12 +1,12 @@
 # Security Policy
 
-1. [Reporting security problems to keywi](#reporting)
+1. [Reporting security problems to Keywi](#reporting)
 2. [Security Point of Contact](#contact)
 3. [Incident Response Process](#process)
 4. [Vulnerability Management Plans](#vulnerability-management)
 
 <a name="reporting"></a>
-## Reporting security problems to keywi
+## Reporting security problems to Keywi
 
 **DO NOT CREATE AN ISSUE** to report a security problem. Instead, please
 send an email to limesayahi@gmail.com
@@ -14,7 +14,7 @@ send an email to limesayahi@gmail.com
 <a name="contact"></a>
 ## Security Point of Contact
 
-The security point of contact is keywi's maintainer, Emil Sayahi. Emil responds to security
+The security point of contact is Keywi's maintainer, Emil Sayahi. Emil responds to security
 incident reports as fast as possible, within one business day at the latest.
 
 <a name="process"></a>
@@ -51,10 +51,10 @@ it from happening again.
 
 ### Keep dependencies up to date
 
-A large chunk of the code being run on your machine when you start keywi is not keywi itself, 
-but, rather, the many dependencies it relies on. Even if keywi itself is secure, one of its dependencies may
+A large chunk of the code being run on your machine when you start Keywi is not Keywi itself, 
+but, rather, the many dependencies it relies on. Even if Keywi itself is secure, one of its dependencies may
 have security vulnerabilities; if a dependency has a vulnerability, it will likely be patched, and it is important
-that we incorporate those patches into keywi.
+that we incorporate those patches into Keywi.
 
 ### Critical Updates And Security Notices
 

@@ -19,13 +19,13 @@ jobs:
           target: aarch64-apple-darwin
           default: true
           profile: minimal
-      - name: Build keywi
+      - name: Build Keywi
         uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build
           args: --release --target aarch64-apple-darwin
-      - name: Prepare keywi for upload
+      - name: Prepare Keywi for upload
         run: |
           cd ./target/aarch64-apple-darwin/release/
           strip ./keywi

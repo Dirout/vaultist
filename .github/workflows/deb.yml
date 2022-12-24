@@ -28,12 +28,12 @@ jobs:
         with:
           command: install
           args: cargo-deb
-      - name: Build & package keywi
+      - name: Build & package Keywi
         uses: actions-rs/cargo@v1
         with:
           command: deb
           args: --separate-debug-symbols -- --target x86_64-unknown-linux-gnu
-      - name: Upload keywi build artifact to GitHub
+      - name: Upload Keywi build artifact to GitHub
         uses: actions/upload-artifact@v3
         with:
           name: x86_64-keywi.deb.gnu+linux

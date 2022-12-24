@@ -58,7 +58,7 @@ jobs:
           chmod 600 /root/.ssh/config
           chmod 400 /root/.ssh/aur
           ssh-keyscan -H aur.archlinux.org >> /root/.ssh/known_hosts
-      - name: Upload keywi Pacman package
+      - name: Upload Keywi Pacman package
         uses: actions/upload-artifact@v3
         with:
           name: x86_64-keywi.pacman
@@ -80,5 +80,5 @@ jobs:
           cp -avf ../PKGBUILD ./
           su -s /bin/sh nobody -c "makepkg --printsrcinfo" > .SRCINFO
           git add -A
-          git commit -m "Automatically updating keywi package via GitHub Actions (see repository for release notes)"
+          git commit -m "Automatically updating Keywi package via GitHub Actions (see repository for release notes)"
           git push origin HEAD:master

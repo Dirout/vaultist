@@ -23,13 +23,13 @@ jobs:
           target: aarch64-unknown-linux-gnu
           default: true
           profile: minimal
-      - name: Build keywi
+      - name: Build Keywi
         uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build
           args: --release --target aarch64-unknown-linux-gnu
-      - name: Prepare keywi for upload
+      - name: Prepare Keywi for upload
         run: |
           cd ./target/aarch64-unknown-linux-gnu/release/
           strip -v --strip-all ./libkeywi.a
@@ -38,7 +38,7 @@ jobs:
           keywi \
           libkeywi.so \
           libkeywi.a
-      - name: Upload keywi build artifacts to GitHub
+      - name: Upload Keywi build artifacts to GitHub
         uses: actions/upload-artifact@v3
         with:
           name: aarch64-keywi.gnu+linux

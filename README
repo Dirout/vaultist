@@ -1,5 +1,5 @@
-# keywi
+# Keywi
 
-keywi is a vault of secrets, written in Rust.
+Keywi is a vault of secrets, written in Rust.
 
 LICENSE: AGPL-3.0-or-later

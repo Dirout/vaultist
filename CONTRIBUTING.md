@@ -1,9 +1,9 @@
-## How to contribute to keywi
+## How to contribute to Keywi
 
 #### **Did you find a bug?**
 
 * **Do not open up a GitHub issue if the bug is a security vulnerability
-  in keywi**, and instead to refer to our [security policy](https://github.com/Dirout/keywi/blob/master/SECURITY.md).
+  in Keywi**, and instead to refer to our [security policy](https://github.com/Dirout/keywi/blob/master/SECURITY.md).
 
 * **Ensure the bug was not already reported** by searching on GitHub under [Issues](https://github.com/Dirout/keywi/issues).
 
@@ -23,7 +23,7 @@ Changes that are cosmetic in nature and do not add anything substantial to the s
 
 * If someone hasn't already suggested the same thing, [open a new issue](https://github.com/Dirout/keywi/issues/new/choose) and start writing code.
 
-keywi is a volunteer effort. We encourage you to pitch in and join [The Team](https://github.com/Dirout/keywi/graphs/contributors)!
+Keywi is a volunteer effort. We encourage you to pitch in and join [The Team](https://github.com/Dirout/keywi/graphs/contributors)!
 
 Merci!
 

@@ -25,11 +25,11 @@ jobs:
         with:
           command: login
           args:  ${{ secrets.NEW_CRATES_LOGIN }}
-      - name: Package keywi
+      - name: Package Keywi
         uses: actions-rs/cargo@v1
         with:
           command: package
-      - name: Publish keywi
+      - name: Publish Keywi
         uses: actions-rs/cargo@v1
         with:
           command: publish
