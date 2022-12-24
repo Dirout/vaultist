@@ -16,21 +16,21 @@ jobs:
         run: |
           brew update > /dev/null
           brew install openssl openssl@1.1 > /dev/null
-      - name: Setup Rust toolchain for X86_64
+      - name: Setup Rust toolchain for AMD64
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           target: x86_64-apple-darwin
           default: true
           profile: minimal
-      - name: Setup Rust toolchain for AARCH64
+      - name: Setup Rust toolchain for ARM64
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           target: aarch64-apple-darwin
           default: false
           profile: minimal
-      - name: Build Vaultist for X86_64
+      - name: Build Vaultist for AMD64
         uses: actions-rs/cargo@v1
         with:
           use-cross: false
@@ -40,6 +40,7 @@ jobs:
         run: |
           SDKROOT=$(xcrun -sdk macosx --show-sdk-path) \
           MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx --show-sdk-platform-version) \
+          OPENSSL_DIR=$(brew --prefix openssl) \
           cargo build --release --target=aarch64-apple-darwin
       - name: Prepare Vaultist for upload
         run: |
@@ -65,7 +66,7 @@ jobs:
           vaultist \
           libvaultist.dylib \
           libvaultist.a
-      - name: Upload Vaultist X86_64 build artifacts to GitHub
+      - name: Upload Vaultist AMD64 build artifacts to GitHub
         uses: actions/upload-artifact@v3
         with:
           name: x86_64-vaultist.osx
