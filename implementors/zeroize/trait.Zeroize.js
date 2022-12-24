@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"vaultist":[["impl Zeroize for <a class=\"struct\" href=\"vaultist/struct.Vault.html\" title=\"struct vaultist::Vault\">Vault</a>"],["impl Zeroize for <a class=\"struct\" href=\"vaultist/struct.Secret.html\" title=\"struct vaultist::Secret\">Secret</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
