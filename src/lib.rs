@@ -17,17 +17,21 @@
 #![feature(drain_filter)]
 #![feature(slice_partition_dedup)]
 
+use ansi_term::Colour;
 use argon2::password_hash::SaltString;
 use argon2::PasswordHasher;
 use chacha20poly1305::aead::{Aead, AeadCore};
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use convert_case::{Case, Casing};
 use derive_more::{Constructor, From, Into};
+use itertools::Itertools;
 use lazy_static::lazy_static;
+use passwords::{analyzer, scorer};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use zxcvbn::zxcvbn;
 
 lazy_static! {
 	/// A vector of symbol characters
@@ -58,13 +62,9 @@ pub enum CorrectHorseBatteryStapleElements {
 	Serialize,
 	Deserialize,
 	From,
-	Into,
-	derive_more::Mul,
-	derive_more::Div,
-	derive_more::Rem,
-	derive_more::Shr,
-	derive_more::Shl,
 	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
 )]
 /// A vault for storing secrets
 pub struct Vault {
@@ -72,6 +72,7 @@ pub struct Vault {
 	pub salt: Vec<u8>,
 	/// The key of the vault
 	pub key: String,
+	#[zeroize(skip)]
 	/// The entries representing the secrets (and the nonces used to encrypt them) within the vault
 	pub items: Vec<(Entry, Vec<u8>)>,
 }
@@ -117,16 +118,13 @@ pub struct Entry {
 	Serialize,
 	Deserialize,
 	From,
-	Into,
-	derive_more::Mul,
-	derive_more::Div,
-	derive_more::Rem,
-	derive_more::Shr,
-	derive_more::Shl,
 	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
 )]
 /// An encrypted entry held within the vault
 pub struct Secret {
+	#[zeroize(skip)]
 	/// The metadata of the secret
 	pub entry: Entry,
 	/// The secret, encrypted information
@@ -166,7 +164,11 @@ pub fn generate_key_from_password_and_salt(
 	password: String,
 	salt: &SaltString,
 ) -> (String, &SaltString) {
-	let config = argon2::Argon2::default();
+	let config = argon2::Argon2::new(
+		argon2::Algorithm::default(),
+		argon2::Version::default(),
+		argon2::Params::new(1048576u32, 4u32, 4u32, None).unwrap(),
+	);
 	let key = config
 		.hash_password(password.as_bytes(), &salt)
 		.unwrap()
@@ -271,8 +273,8 @@ impl Vault {
 	/// * `item` - The secret to encrypt.
 	pub fn encrypt_secret(&mut self, item: &mut Secret) -> Vec<u8> {
 		let serialised: Vec<u8> = bincode::serialize(&item).unwrap();
-		let encrypted_serialised = encrypt_bytes(&self.key, &serialised, &item.nonce);
-		self.add_item(item.clone().entry, item.clone().nonce);
+		let encrypted_serialised = encrypt_bytes(&self.key, &serialised, &item.nonce.clone());
+		self.add_item(item.entry.clone(), item.nonce.clone());
 		encrypted_serialised
 	}
 }
@@ -441,4 +443,74 @@ pub fn correct_horse_battery_staple(
 	}
 
 	result
+}
+
+/// Analyses whether or not a password is sufficiently resistant against an attack. Returns a tuple with a boolean and a string. The boolean is true if the password is sufficiently resistant against an attack, false otherwise. The string is a message that explains whether the password is or is not sufficiently resistant against an attack, and, if not, some suggestions to give.
+///
+/// # Arguments
+///
+/// * `password` - The password to be analysed.
+pub fn get_password_feedback(password: String) -> (bool, String) {
+	let is_ok: bool;
+
+	let analysed_password = analyzer::analyze(&password);
+	let score = scorer::score(&analysed_password);
+
+	let strength_estimate = zxcvbn(&password, &[]).unwrap();
+	let warning_string = if strength_estimate.feedback().is_some() {
+		match strength_estimate.feedback().as_ref().unwrap().warning() {
+			Some(w) => format!("\nWarning: {}", Colour::Red.bold().paint(w.to_string())),
+			None => "".to_owned(),
+		}
+	} else {
+		"".to_owned()
+	};
+	let suggestions_string = if strength_estimate.feedback().is_some() {
+		let suggestions = strength_estimate.feedback().as_ref().unwrap().suggestions();
+		match suggestions.is_empty() {
+			false => format!(
+				"\n{}:\n{}",
+				Colour::Yellow.bold().paint("Suggestions"),
+				suggestions
+					.iter()
+					.map(|s| " - ".to_owned() + &s.to_string())
+					.collect_vec()
+					.join("\n")
+			),
+			true => "".to_owned(),
+		}
+	} else {
+		"".to_owned()
+	};
+	let feedback = if strength_estimate.score() < 3 || score < 80.0 {
+		is_ok = false;
+		format!(
+			"\n{}{}{}",
+			Colour::Red
+				.bold()
+				.paint("❌ This password is insecure and should not be used."),
+			warning_string,
+			suggestions_string
+		)
+	} else if strength_estimate.score() >= 3 && score >= 80.0 {
+		is_ok = true;
+		format!(
+			"\n{}",
+			Colour::Green
+				.bold()
+				.paint("✔️ This password is sufficiently safe to use.")
+		)
+	} else {
+		is_ok = false;
+		format!(
+			"\n{}{}{}",
+			Colour::Yellow
+				.bold()
+				.paint("⚠️ This password may not be secure."),
+			warning_string,
+			suggestions_string
+		)
+	};
+
+	(is_ok, feedback)
 }

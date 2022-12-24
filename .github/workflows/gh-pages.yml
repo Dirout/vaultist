@@ -33,7 +33,7 @@ jobs:
           
           cd ./vaultist
           printf "\nGenerating documentation … "
-          time cargo doc --no-deps --document-private-items --release --quiet
+          time cargo doc --no-deps --all-features --release --quiet
           cd ../
           
           cp -ar ./vaultist/target/doc/* ./gh-pages

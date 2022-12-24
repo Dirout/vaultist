@@ -140,6 +140,7 @@ fn main() {
     "
 	)
 	.unwrap();
+
 	match MATCHES.subcommand() {
 		Some(("show", show_matches)) => {
 			show(show_matches);
@@ -213,12 +214,14 @@ fn new_vault(matches: &clap::ArgMatches) {
 		init_attempt_password == confirm_attempt_password,
 		"❌ Password could not be confirmed."
 	);
+	let password_feedback = vaultist::get_password_feedback(init_attempt_password);
+	assert!(password_feedback.0, "{}", password_feedback.1);
 
 	let new_vault = vaultist::create_vault_from_password(confirm_attempt_password);
 	let verify_attempt_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
-		"🔑 Enter your password again to verify that it's accepted: ",
+		"🔑 Enter your password again to verify that it can unlock the vault: ",
 	)
 	.unwrap();
 	assert!(
@@ -465,21 +468,23 @@ fn see_item(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 	let entry_nonce_map: HashMap<vaultist::Entry, Vec<u8>> =
-		deserialised_vault.items.into_iter().collect();
+		deserialised_vault.items.clone().into_iter().collect();
 	let item_nonce = entry_nonce_map.get(&selected_item.0).unwrap();
 	let encrypted_secret =
 		read_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".vaultist")));
 	let decrypted_secret = vaultist::decrypt_secret(
-		deserialised_vault.key,
+		deserialised_vault.key.clone(),
 		encrypted_secret,
 		item_nonce.to_owned(),
 	);
 	writeln!(
 		buf_out,
 		"\n{} ({}):\n\n{}\n\n{} {}\n",
-		Colour::Yellow.bold().paint(decrypted_secret.entry.name),
+		Colour::Yellow
+			.bold()
+			.paint(decrypted_secret.entry.name.clone()),
 		Colour::Fixed(7).paint(decrypted_secret.entry.id.to_string()),
-		Colour::Cyan.paint(String::from_utf8(decrypted_secret.contents).unwrap()),
+		Colour::Cyan.paint(String::from_utf8(decrypted_secret.contents.clone()).unwrap()),
 		Colour::Yellow.bold().paint("Last modified:"),
 		Colour::Fixed(7).paint(decrypted_secret.entry.last_modified.to_rfc2822())
 	)
@@ -549,7 +554,7 @@ fn change_item(matches: &clap::ArgMatches) {
 	let query_parser = QueryParser::for_index(&index, vec![name, id, last_modified]);
 
 	let search_query: String = Input::new()
-		.with_prompt("❓ Search for the secret you're trying to modify: ")
+		.with_prompt("❓ Search for the secret you're trying to modify")
 		.allow_empty(false)
 		.interact_text_on(&Term::buffered_stdout())
 		.unwrap();
@@ -563,27 +568,18 @@ fn change_item(matches: &clap::ArgMatches) {
 	for (_score, doc_address) in results {
 		let retrieved_doc = searcher.doc(doc_address).unwrap();
 		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
-		let retrieved_date: chrono::DateTime<chrono::Utc> = chrono::DateTime::from_utc(
-			chrono::NaiveDateTime::from_timestamp_opt(
-				retrieved_doc
-					.get_first(last_modified)
-					.unwrap()
-					.as_date()
-					.unwrap()
-					.into_utc()
-					.unix_timestamp(),
-				0,
-			)
-			.unwrap(),
-			chrono::Utc,
-		);
+		let retrieved_date = retrieved_doc
+			.get_first(last_modified)
+			.unwrap()
+			.as_text()
+			.unwrap();
 		result_options.insert(
 			format!(
 				"{}. {} ({}; {})",
 				i,
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
-				retrieved_date.to_rfc2822()
+				retrieved_date
 			),
 			Uuid::parse_str(retrieved_id).unwrap(),
 		);
@@ -617,7 +613,7 @@ fn change_item(matches: &clap::ArgMatches) {
 		selected_item.clone().0.id.to_string() + ".vaultist",
 	)));
 	let decrypted_secret = vaultist::decrypt_secret(
-		deserialised_vault.clone().key,
+		deserialised_vault.clone().key.clone(),
 		encrypted_secret,
 		selected_item.clone().1,
 	);
@@ -628,7 +624,9 @@ fn change_item(matches: &clap::ArgMatches) {
 		decrypted_secret.entry.name
 	)
 	.unwrap();
-	let new_entry_name = edit::edit(decrypted_secret.clone().entry.name).unwrap();
+	let new_entry_name = edit::edit(decrypted_secret.clone().entry.name.clone())
+		.unwrap()
+		.replace("\n", "");
 
 	writeln!(
 		buf_out,
@@ -636,7 +634,7 @@ fn change_item(matches: &clap::ArgMatches) {
 		decrypted_secret.entry.name
 	)
 	.unwrap();
-	let new_secret_contents = edit::edit(decrypted_secret.clone().contents).unwrap();
+	let new_secret_contents = edit::edit(decrypted_secret.clone().contents.clone()).unwrap();
 
 	let mut hasher = Blake2bVar::new(64).unwrap();
 	hasher.update(new_secret_contents.as_bytes());
@@ -651,7 +649,9 @@ fn change_item(matches: &clap::ArgMatches) {
 	};
 	let entry_nonce_map: HashMap<vaultist::Entry, Vec<u8>> =
 		deserialised_vault.items.clone().into_iter().collect();
-	let entry_nonce = entry_nonce_map.get(&new_entry).unwrap();
+	let entry_nonce = entry_nonce_map
+		.get(&decrypted_secret.clone().entry.clone())
+		.unwrap();
 	let mut new_secret = vaultist::Secret {
 		entry: new_entry.clone(),
 		contents: new_secret_contents.into_bytes(),
@@ -660,10 +660,24 @@ fn change_item(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
+	deserialised_vault.remove_item(&decrypted_secret.entry.clone());
 	write_file(
-		path_buf.join(filenamify(new_entry.id.to_string() + ".vaultist")),
+		path_buf.join(filenamify(new_entry.id.clone().to_string() + ".vaultist")),
 		&deserialised_vault.encrypt_secret(&mut new_secret),
 	);
+
+	let secret_id_term =
+		tantivy::schema::Term::from_field_text(id, &new_entry.id.clone().to_string());
+	let mut index_writer = index.writer(100_000_000).unwrap();
+	index_writer.delete_term(secret_id_term);
+	index_writer
+		.add_document(doc!(
+			name => new_entry.clone().name,
+			id => new_entry.id.to_string(),
+			last_modified => new_entry.last_modified.to_rfc2822(),
+		))
+		.unwrap();
+	index_writer.commit().unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -743,27 +757,18 @@ fn remove_item(matches: &clap::ArgMatches) {
 	for (_score, doc_address) in results {
 		let retrieved_doc = searcher.doc(doc_address).unwrap();
 		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
-		let retrieved_date: chrono::DateTime<chrono::Utc> = chrono::DateTime::from_utc(
-			chrono::NaiveDateTime::from_timestamp_opt(
-				retrieved_doc
-					.get_first(last_modified)
-					.unwrap()
-					.as_date()
-					.unwrap()
-					.into_utc()
-					.unix_timestamp(),
-				0,
-			)
-			.unwrap(),
-			chrono::Utc,
-		);
+		let retrieved_date = retrieved_doc
+			.get_first(last_modified)
+			.unwrap()
+			.as_text()
+			.unwrap();
 		result_options.insert(
 			format!(
 				"{}. {} ({}; {})",
 				i,
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
-				retrieved_date.to_rfc2822()
+				retrieved_date
 			),
 			Uuid::parse_str(retrieved_id).unwrap(),
 		);
@@ -796,8 +801,16 @@ fn remove_item(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	deserialised_vault.remove_item(&selected_item.0);
-	std::fs::remove_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".vaultist")))
-		.unwrap();
+	std::fs::remove_file(path_buf.join(filenamify(
+		selected_item.clone().0.id.to_string() + ".vaultist",
+	)))
+	.unwrap();
+
+	let secret_id_term =
+		tantivy::schema::Term::from_field_text(id, &selected_item.clone().0.id.to_string());
+	let mut index_writer = index.writer(100_000_000).unwrap();
+	index_writer.delete_term(secret_id_term);
+	index_writer.commit().unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
