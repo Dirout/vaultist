@@ -626,7 +626,7 @@ fn change_item(matches: &clap::ArgMatches) {
 	.unwrap();
 	let new_entry_name = edit::edit(decrypted_secret.clone().entry.name.clone())
 		.unwrap()
-		.replace("\n", "");
+		.replace('\n', "");
 
 	writeln!(
 		buf_out,
