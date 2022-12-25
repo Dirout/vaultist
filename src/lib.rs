@@ -21,7 +21,8 @@
 #![feature(drain_filter)]
 #![feature(slice_partition_dedup)]
 
-use ansi_term::Colour;
+pub mod stopwatch;
+
 use argon2::password_hash::SaltString;
 use argon2::PasswordHasher;
 use blake2::digest::Update;
@@ -44,6 +45,7 @@ use std::fmt::Formatter;
 use std::path::PathBuf;
 use url::Url;
 use uuid::Uuid;
+use yansi::Paint;
 use zxcvbn::zxcvbn;
 
 lazy_static! {
@@ -917,7 +919,7 @@ pub fn get_password_feedback(password: String) -> (bool, String) {
 	let strength_estimate = zxcvbn(&password, &[]).unwrap();
 	let warning_string = if strength_estimate.feedback().is_some() {
 		match strength_estimate.feedback().as_ref().unwrap().warning() {
-			Some(w) => format!("\nWarning: {}", Colour::Red.bold().paint(w.to_string())),
+			Some(w) => format!("\nWarning: {}", Paint::red(w.to_string()).bold()),
 			None => "".to_owned(),
 		}
 	} else {
@@ -928,7 +930,7 @@ pub fn get_password_feedback(password: String) -> (bool, String) {
 		match suggestions.is_empty() {
 			false => format!(
 				"\n{}:\n{}",
-				Colour::Yellow.bold().paint("Suggestions"),
+				Paint::yellow("Suggestions").bold(),
 				suggestions
 					.iter()
 					.map(|s| " - ".to_owned() + &s.to_string())
@@ -944,9 +946,7 @@ pub fn get_password_feedback(password: String) -> (bool, String) {
 		is_ok = false;
 		format!(
 			"\n{}{}{}",
-			Colour::Red
-				.bold()
-				.paint("❌ This password is insecure and should not be used."),
+			Paint::red("❌ This password is insecure and should not be used.").bold(),
 			warning_string,
 			suggestions_string
 		)
@@ -954,17 +954,13 @@ pub fn get_password_feedback(password: String) -> (bool, String) {
 		is_ok = true;
 		format!(
 			"\n{}",
-			Colour::Green
-				.bold()
-				.paint("✔️ This password is sufficiently safe to use.")
+			Paint::green("✔️ This password is sufficiently safe to use.").bold()
 		)
 	} else {
 		is_ok = false;
 		format!(
 			"\n{}{}{}",
-			Colour::Yellow
-				.bold()
-				.paint("⚠️ This password may not be secure."),
+			Paint::yellow("⚠️ This password may not be secure.").bold(),
 			warning_string,
 			suggestions_string
 		)
@@ -1117,10 +1113,7 @@ pub fn get_secrets_from_firefox(path: PathBuf) -> Vec<Secret> {
 		let contents = format!(
 			"URL: {}\nUsername: {}\nPassword: {}",
 			record.url,
-			record
-				.username
-				.clone()
-				.unwrap_or(String::from("None")),
+			record.username.clone().unwrap_or(String::from("None")),
 			record.password
 		);
 

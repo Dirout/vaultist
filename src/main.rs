@@ -25,7 +25,6 @@
 #![feature(exclusive_range_pattern)]
 #![feature(int_roundings)]
 
-use ansi_term::Colour;
 use argon2::{PasswordHash, PasswordVerifier};
 use blake2::digest::Update;
 use blake2::digest::VariableOutput;
@@ -45,13 +44,14 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
-use stopwatch::Stopwatch;
 use tantivy::collector::TopDocs;
 use tantivy::directory::MmapDirectory;
 use tantivy::query::QueryParser;
 use tantivy::schema::{Schema, STORED, TEXT};
 use tantivy::{doc, DocAddress, Index, Score};
 use uuid::Uuid;
+use vaultist::stopwatch::Stopwatch;
+use yansi::Paint;
 use zxcvbn::zxcvbn;
 
 #[global_allocator]
@@ -475,13 +475,11 @@ fn see_item(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n{} ({}):\n\n{}\n\n{} {}\n",
-		Colour::Yellow
-			.bold()
-			.paint(decrypted_secret.entry.name.clone()),
-		Colour::Fixed(7).paint(decrypted_secret.entry.id.to_string()),
-		Colour::Cyan.paint(String::from_utf8(decrypted_secret.contents.clone()).unwrap()),
-		Colour::Yellow.bold().paint("Last modified:"),
-		Colour::Fixed(7).paint(decrypted_secret.entry.last_modified.to_rfc2822())
+		Paint::yellow(decrypted_secret.entry.name.clone()).bold(),
+		Paint::fixed(7, decrypted_secret.entry.id.to_string()),
+		Paint::cyan(String::from_utf8(decrypted_secret.contents.clone()).unwrap()),
+		Paint::yellow("Last modified:").bold(),
+		Paint::fixed(7, decrypted_secret.entry.last_modified.to_rfc2822())
 	)
 	.unwrap();
 
@@ -958,7 +956,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 	let num_generations = count.div_ceil(2);
 	let generations = pg.generate(num_generations).unwrap();
 	for password in generations {
-		writeln!(buf_out, "{}", Colour::Blue.bold().paint(password)).unwrap();
+		writeln!(buf_out, "{}", Paint::blue(password).bold()).unwrap();
 	}
 	let xkcd_generations = vaultist::correct_horse_battery_staple(
 		count - num_generations,
@@ -971,7 +969,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 		exclude_similar_characters,
 	);
 	for password in xkcd_generations {
-		writeln!(buf_out, "{}", Colour::Blue.bold().paint(password)).unwrap();
+		writeln!(buf_out, "{}", Paint::blue(password).bold()).unwrap();
 	}
 
 	// Show how long it took to perform operation
@@ -1005,22 +1003,22 @@ fn analyse_password(matches: &clap::ArgMatches) {
 	let analysed_password = analyzer::analyze(&password);
 	let score = scorer::score(&analysed_password);
 	let score_string = match Some(score.trunc() as usize) {
-		Some(_x @ 0..20) => Colour::Red.paint("⚠️ very vulnerable"),
-		Some(_x @ 20..40) => Colour::Red.paint("⚠️ vulnerable"),
-		Some(_x @ 40..60) => Colour::Red.paint("⚠️ very weak"),
-		Some(_x @ 60..80) => Colour::Red.paint("⚠️ weak"),
-		Some(_x @ 80..90) => Colour::Yellow.paint("➖ good"),
-		Some(_x @ 90..95) => Colour::Green.paint("✔️ strong"),
-		Some(_x @ 95..99) => Colour::Cyan.paint("✔️ very strong"),
-		Some(_x @ 99..100) => Colour::Blue.paint("✔️ ideal"),
-		Some(_) => Colour::Fixed(7).paint("❌ error during scoring"),
-		None => Colour::Fixed(7).paint("❌ error during scoring"),
+		Some(_x @ 0..20) => Paint::red("⚠️ very vulnerable"),
+		Some(_x @ 20..40) => Paint::red("⚠️ vulnerable"),
+		Some(_x @ 40..60) => Paint::red("⚠️ very weak"),
+		Some(_x @ 60..80) => Paint::red("⚠️ weak"),
+		Some(_x @ 80..90) => Paint::yellow("➖ good"),
+		Some(_x @ 90..95) => Paint::green("✔️ strong"),
+		Some(_x @ 95..99) => Paint::cyan("✔️ very strong"),
+		Some(_x @ 99..100) => Paint::blue("✔️ ideal"),
+		Some(_) => Paint::fixed(7, "❌ error during scoring"),
+		None => Paint::fixed(7, "❌ error during scoring"),
 	};
 
 	let strength_estimate = zxcvbn(&password, &[]).unwrap();
 	let warning_string = if strength_estimate.feedback().is_some() {
 		match strength_estimate.feedback().as_ref().unwrap().warning() {
-			Some(w) => format!("\nWarning: {}", Colour::Red.bold().paint(w.to_string())),
+			Some(w) => format!("\nWarning: {}", Paint::red(w.to_string()).bold()),
 			None => "".to_owned(),
 		}
 	} else {
@@ -1031,7 +1029,7 @@ fn analyse_password(matches: &clap::ArgMatches) {
 		match suggestions.is_empty() {
 			false => format!(
 				"\n{}:\n{}",
-				Colour::Yellow.bold().paint("Suggestions"),
+				Paint::yellow("Suggestions").bold(),
 				suggestions
 					.iter()
 					.map(|s| " - ".to_owned() + &s.to_string())
@@ -1046,25 +1044,19 @@ fn analyse_password(matches: &clap::ArgMatches) {
 	let feedback = if strength_estimate.score() < 3 || score < 80.0 {
 		format!(
 			"\n{}{}{}",
-			Colour::Red
-				.bold()
-				.paint("❌ This password is insecure and should not be used."),
+			Paint::red("❌ This password is insecure and should not be used.").bold(),
 			warning_string,
 			suggestions_string
 		)
 	} else if strength_estimate.score() >= 3 && score >= 80.0 {
 		format!(
 			"\n{}",
-			Colour::Green
-				.bold()
-				.paint("✔️ This password is sufficiently safe to use.")
+			Paint::green("✔️ This password is sufficiently safe to use.").bold()
 		)
 	} else {
 		format!(
 			"\n{}{}{}",
-			Colour::Yellow
-				.bold()
-				.paint("⚠️ This password may not be secure."),
+			Paint::yellow("⚠️ This password may not be secure.").bold(),
 			warning_string,
 			suggestions_string
 		)
