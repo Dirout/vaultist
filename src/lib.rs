@@ -253,7 +253,15 @@ pub struct BitwardenRecordJSON {
 	pub folder_id: Option<String>,
 	#[zeroize(skip)]
 	#[serde(rename = "type")]
-	/// The type of the record. Can be: Login (1), Secure Note (2), Card (3), or Identity (4)
+	/// The type of the record (see: <https://bitwarden.com/help/managing-items/>).
+	///
+	/// Can be:
+	/// - Login (1)
+	/// - Secure Note (2)
+	/// - Card (3)
+	/// - Identity (4)
+	///
+	/// See: <https://bitwarden.com/help/cli/#enums>
 	pub type_: usize,
 	/// Whether or not the vault password should be reprompted to view the record
 	pub reprompt: Option<usize>,
@@ -308,7 +316,14 @@ pub struct BitwardenField {
 	/// The value of the field
 	pub value: String,
 	#[serde(rename = "type")]
-	/// The type of the field
+	/// The type of the field (see: <https://bitwarden.com/help/custom-fields/>).
+	///
+	/// Can be:
+	/// - Text (0)
+	/// - Hidden (1)
+	/// - Boolean (2)
+	///
+	/// See: <https://bitwarden.com/help/cli/#enums>
 	pub type_: usize,
 }
 
@@ -354,12 +369,8 @@ impl Display for BitwardenLogin {
 			f,
 			"Login URI: {}\nUsername: {}\nPassword: {}\nTOTP: {}",
 			uris_str,
-			self.username
-				.clone()
-				.unwrap_or(String::from("None")),
-			self.password
-				.clone()
-				.unwrap_or(String::from("None")),
+			self.username.clone().unwrap_or(String::from("None")),
+			self.password.clone().unwrap_or(String::from("None")),
 			self.totp.clone().unwrap_or(String::from("None"))
 		)
 	}
@@ -379,9 +390,20 @@ impl Display for BitwardenLogin {
 	zeroize::Zeroize,
 	zeroize::ZeroizeOnDrop,
 )]
+/// A URI in a Bitwarden login record
 pub struct BitwardenURI {
 	#[serde(rename = "match")]
-	/// The match of the URI
+	/// The match detection option of the URI (see: <https://bitwarden.com/help/uri-match-detection/#match-detection-options>).
+	///
+	/// Can be:
+	/// - Domain (0)
+	/// - Host (1)
+	/// - Starts With (2)
+	/// - Exact (3)
+	/// - Regular Expression (4)
+	/// - Never (5)
+	///
+	/// See: <https://bitwarden.com/help/cli/#enums>
 	pub match_: Option<usize>,
 	/// The URI
 	pub uri: String,
