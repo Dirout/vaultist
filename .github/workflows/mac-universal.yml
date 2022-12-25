@@ -48,10 +48,23 @@ jobs:
           -output target/vaultist \
           target/aarch64-apple-darwin/release/vaultist \
           target/x86_64-apple-darwin/release/vaultist
+          lipo -create \
+          -output target/libvaultist.dylib \
+          target/aarch64-apple-darwin/release/libvaultist.dylib \
+          target/x86_64-apple-darwin/release/libvaultist.dylib
+          lipo -create \
+          -output target/libvaultist.a \
+          target/aarch64-apple-darwin/release/libvaultist.a \
+          target/x86_64-apple-darwin/release/libvaultist.a
           strip ./target/vaultist
           chmod +x ./target/vaultist
+          cd ./target
+          tar -cvf universal-vaultist.osx.tar \
+          vaultist \
+          libvaultist.dylib \
+          libvaultist.a
 
-          cd ./target/x86_64-apple-darwin/release/
+          cd ./x86_64-apple-darwin/release/
           strip ./vaultist
           chmod +x ./vaultist
           tar -cvf x86_64-vaultist.osx.tar \
@@ -82,5 +95,5 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: universal-vaultist.osx
-          path: ./target/vaultist
+          path: ./target/universal-vaultist.osx.tar
           if-no-files-found: error
