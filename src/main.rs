@@ -96,6 +96,9 @@ lazy_static! {
 	.subcommand(Command::new("import_bitwarden").about("Import items from a Bitwarden vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
 		.arg(arg!(BITWARDEN_EXPORT_PATH: "Path to an exported Bitwarden vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("import_firefox").about("Import items from a Firefox vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(FIREFOX_EXPORT_PATH: "Path to an exported Firefox vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
 	.get_matches_from(wild::args());
 }
 
@@ -175,9 +178,15 @@ fn main() {
 		Some(("import_bitwarden", import_bitwarden_matches)) => {
 			import_bitwarden(import_bitwarden_matches);
 		}
+		Some(("import_firefox", import_firefox_matches)) => {
+			import_firefox(import_firefox_matches);
+		}
 		None => writeln!(buf_out, "Vaultist {}", crate_version!()).unwrap(),
 		_ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
 	}
+
+	// Show the cursor again
+	print!("\x1B[?25h");
 }
 
 /// Create a new vault using a user-supplied password.
@@ -186,11 +195,8 @@ fn main() {
 ///
 /// * `PATH` - Where to store the vault in the filesystem (required).
 fn new_vault(matches: &clap::ArgMatches) {
-	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
-	let stdin_lock = stdin.lock();
 	let stdout_lock = stdout.lock();
-	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
 	let path_buf_input = matches
@@ -204,18 +210,10 @@ fn new_vault(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let init_attempt_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
-		"🔑 Enter a password for your new vault: ",
-	)
-	.unwrap();
-	let confirm_attempt_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
-		"🔑 Enter your password again to confirm it: ",
-	)
-	.unwrap();
+	let init_attempt_password =
+		rpassword::prompt_password("🔑 Enter a password for your new vault: ").unwrap();
+	let confirm_attempt_password =
+		rpassword::prompt_password("🔑 Enter your password again to confirm it: ").unwrap();
 	assert!(
 		init_attempt_password == confirm_attempt_password,
 		"❌ Password could not be confirmed."
@@ -227,9 +225,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 	let new_vault = vaultist::create_vault_from_password(confirm_attempt_password); // Create the vault
 	timer.stop(); // Stop the stopwatch
 
-	let verify_attempt_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
+	let verify_attempt_password = rpassword::prompt_password(
 		"🔑 Enter your password again to verify that it can unlock the vault: ",
 	)
 	.unwrap();
@@ -250,6 +246,15 @@ fn new_vault(matches: &clap::ArgMatches) {
 		&bincode::serialize(&new_vault).unwrap(),
 	);
 
+	let mut schema_builder = Schema::builder();
+	let _name = schema_builder.add_text_field("title", TEXT | STORED);
+	let _id = schema_builder.add_text_field("id", TEXT | STORED);
+	let _last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
+	let schema = schema_builder.build();
+	let index = Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema).unwrap();
+	let mut index_writer = index.writer(100_000_000).unwrap();
+	index_writer.commit().unwrap();
+
 	// Show how long it took to perform operation
 	timer.stop();
 	writeln!(
@@ -266,11 +271,8 @@ fn new_vault(matches: &clap::ArgMatches) {
 ///
 /// * `PATH` - Path to a vault in the filesystem (required).
 fn add_item(matches: &clap::ArgMatches) {
-	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
-	let stdin_lock = stdin.lock();
 	let stdout_lock = stdout.lock();
-	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
 	let path_buf_input = matches
@@ -286,12 +288,7 @@ fn add_item(matches: &clap::ArgMatches) {
 
 	let mut deserialised_vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
-	let verify_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
-		"🔑 Enter your vault password: ",
-	)
-	.unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
@@ -320,7 +317,7 @@ fn add_item(matches: &clap::ArgMatches) {
 	let new_entry = vaultist::Entry {
 		name: entry_name,
 		hash: content_hash.to_vec(),
-		id: Uuid::new_v4(),
+		id: Uuid::now_v7(),
 		last_modified: chrono::offset::Utc::now(),
 	};
 	let nonce = vaultist::generate_nonce();
@@ -340,12 +337,11 @@ fn add_item(matches: &clap::ArgMatches) {
 		&bincode::serialize(&deserialised_vault).unwrap(),
 	);
 
-	let mut schema_builder = Schema::builder();
-	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
-	let schema = schema_builder.build();
-	let index = Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema).unwrap();
+	let index = Index::open(MmapDirectory::open(path_buf).unwrap()).unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 	index_writer
 		.add_document(doc!(
@@ -372,11 +368,8 @@ fn add_item(matches: &clap::ArgMatches) {
 ///
 /// * `PATH` - Path to a vault in the filesystem (required).
 fn see_item(matches: &clap::ArgMatches) {
-	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
-	let stdin_lock = stdin.lock();
 	let stdout_lock = stdout.lock();
-	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
 	let path_buf_input = matches
@@ -392,12 +385,7 @@ fn see_item(matches: &clap::ArgMatches) {
 
 	let deserialised_vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
-	let verify_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
-		"🔑 Enter your vault password: ",
-	)
-	.unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
@@ -408,13 +396,11 @@ fn see_item(matches: &clap::ArgMatches) {
 		"❌ Could not access vault with that password."
 	);
 
-	let mut schema_builder = Schema::builder();
-	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
-	let schema = schema_builder.build();
-	let index =
-		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
+	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, id, last_modified]);
@@ -458,6 +444,9 @@ fn see_item(matches: &clap::ArgMatches) {
 		.interact_on_opt(&Term::buffered_stderr())
 		.unwrap()
 		.unwrap();
+
+	// Show the cursor again
+	print!("\x1B[?25h");
 
 	let deserialised_vault_items_clone = deserialised_vault.items.clone();
 	let selected_item = deserialised_vault_items_clone
@@ -512,11 +501,8 @@ fn see_item(matches: &clap::ArgMatches) {
 ///
 /// * `PATH` - Path to a vault in the filesystem (required).
 fn change_item(matches: &clap::ArgMatches) {
-	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
-	let stdin_lock = stdin.lock();
 	let stdout_lock = stdout.lock();
-	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
 	let path_buf_input = matches
@@ -532,12 +518,7 @@ fn change_item(matches: &clap::ArgMatches) {
 
 	let mut deserialised_vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
-	let verify_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
-		"🔑 Enter your vault password: ",
-	)
-	.unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
@@ -548,13 +529,11 @@ fn change_item(matches: &clap::ArgMatches) {
 		"❌ Could not access vault with that password."
 	);
 
-	let mut schema_builder = Schema::builder();
-	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
-	let schema = schema_builder.build();
-	let index =
-		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
+	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, id, last_modified]);
@@ -598,6 +577,9 @@ fn change_item(matches: &clap::ArgMatches) {
 		.interact_on_opt(&Term::buffered_stderr())
 		.unwrap()
 		.unwrap();
+
+	// Show the cursor again
+	print!("\x1B[?25h");
 
 	let selected_item = deserialised_vault
 		.items
@@ -681,6 +663,7 @@ fn change_item(matches: &clap::ArgMatches) {
 		))
 		.unwrap();
 	index_writer.commit().unwrap();
+	reader.reload().unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -698,11 +681,8 @@ fn change_item(matches: &clap::ArgMatches) {
 ///
 /// * `PATH` - Path to a vault in the filesystem (required)
 fn remove_item(matches: &clap::ArgMatches) {
-	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
-	let stdin_lock = stdin.lock();
 	let stdout_lock = stdout.lock();
-	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
 	let path_buf_input = matches
@@ -718,12 +698,7 @@ fn remove_item(matches: &clap::ArgMatches) {
 
 	let mut deserialised_vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
-	let verify_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
-		"🔑 Enter your vault password: ",
-	)
-	.unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
@@ -734,13 +709,11 @@ fn remove_item(matches: &clap::ArgMatches) {
 		"❌ Could not access vault with that password."
 	);
 
-	let mut schema_builder = Schema::builder();
-	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
-	let schema = schema_builder.build();
-	let index =
-		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
+	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
 	let reader = index.reader().unwrap();
 	let searcher = reader.searcher();
 	let query_parser = QueryParser::for_index(&index, vec![name, id, last_modified]);
@@ -785,6 +758,9 @@ fn remove_item(matches: &clap::ArgMatches) {
 		.unwrap()
 		.unwrap();
 
+	// Show the cursor again
+	print!("\x1B[?25h");
+
 	let copy_of_items = deserialised_vault.items.clone();
 	let selected_item = copy_of_items
 		.iter()
@@ -811,6 +787,7 @@ fn remove_item(matches: &clap::ArgMatches) {
 	let mut index_writer = index.writer(100_000_000).unwrap();
 	index_writer.delete_term(secret_id_term);
 	index_writer.commit().unwrap();
+	reader.reload().unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -830,11 +807,8 @@ fn remove_item(matches: &clap::ArgMatches) {
 ///
 /// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
 fn deduplicate_items(matches: &clap::ArgMatches) {
-	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
-	let stdin_lock = stdin.lock();
 	let stdout_lock = stdout.lock();
-	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
 	let ignore_names = match matches.get_one::<bool>("ignore_names") {
@@ -855,12 +829,7 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 
 	let mut deserialised_vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
-	let verify_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
-		"🔑 Enter your vault password: ",
-	)
-	.unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
@@ -873,13 +842,12 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	let mut schema_builder = Schema::builder();
-	let _name = schema_builder.add_text_field("title", TEXT | STORED);
-	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let _last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
-	let schema = schema_builder.build();
-	let index =
-		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
+	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
+	let reader = index.reader().unwrap();
+	let schema = index.schema();
+	let _name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let _last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
 	let duplicate_items = deserialised_vault.deduplicate_items(ignore_names);
@@ -891,6 +859,7 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 		index_writer.delete_term(secret_id_term);
 	}
 	index_writer.commit().unwrap();
+	reader.reload().unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -1021,22 +990,14 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 ///
 /// * `password` - The password to be analysed.
 fn analyse_password(matches: &clap::ArgMatches) {
-	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
-	let stdin_lock = stdin.lock();
 	let stdout_lock = stdout.lock();
-	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
 	let password_match = matches.get_one::<String>("password");
 	let password = match password_match {
 		Some(p) => p.to_owned(),
-		None => rpassword::prompt_password_from_bufread(
-			&mut buf_in,
-			&mut buf_out,
-			"🔑 Enter a password to analyse: ",
-		)
-		.unwrap(),
+		None => rpassword::prompt_password("🔑 Enter a password to analyse: ").unwrap(),
 	};
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
@@ -1127,11 +1088,8 @@ fn analyse_password(matches: &clap::ArgMatches) {
 ///
 /// * `PATH` - Path to a Bitwarden vault in the filesystem (required).
 fn import_bitwarden(matches: &clap::ArgMatches) {
-	let stdin = std::io::stdin();
 	let stdout = std::io::stdout();
-	let stdin_lock = stdin.lock();
 	let stdout_lock = stdout.lock();
-	let mut buf_in = BufReader::new(stdin_lock);
 	let mut buf_out = BufWriter::new(stdout_lock);
 
 	let vault_path_buf_input = matches
@@ -1158,12 +1116,7 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 
 	let mut deserialised_vault: vaultist::Vault =
 		bincode::deserialize(&read_file(vault_path_buf.join(".vaultist-vault"))).unwrap();
-	let verify_password = rpassword::prompt_password_from_bufread(
-		&mut buf_in,
-		&mut buf_out,
-		"🔑 Enter your vault password: ",
-	)
-	.unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
@@ -1176,13 +1129,11 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	let mut schema_builder = Schema::builder();
-	let name = schema_builder.add_text_field("title", TEXT | STORED);
-	let id = schema_builder.add_text_field("id", TEXT | STORED);
-	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
-	let schema = schema_builder.build();
-	let index = Index::open_or_create(MmapDirectory::open(vault_path_buf.clone()).unwrap(), schema)
-		.unwrap();
+	let index = Index::open(MmapDirectory::open(vault_path_buf.clone()).unwrap()).unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
 	let bitwarden_secrets = vaultist::get_secrets_from_bitwarden(bitwarden_path_buf).unwrap(); // Grab items from vault exported from Bitwarden
@@ -1217,6 +1168,97 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 		buf_out,
 		"\n⏰ Imported {} secret(s) from Bitwarden in {} seconds.",
 		bitwarden_secrets_len,
+		(timer.elapsed_ms() as f32 / 1000.0)
+	)
+	.unwrap();
+}
+
+/// Import items from a Firefox vault.
+///
+/// # Arguments
+///
+/// * `PATH` - Path to a Firefox vault in the filesystem (required).
+fn import_firefox(matches: &clap::ArgMatches) {
+	let stdout = std::io::stdout();
+	let stdout_lock = stdout.lock();
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let vault_path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let vault_path_buf = match std::fs::canonicalize(vault_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(vault_path_buf_input.to_str().unwrap())),
+	};
+
+	let firefox_path_buf_input = matches
+		.get_one::<PathBuf>("FIREFOX_EXPORT_PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let firefox_path_buf = match std::fs::canonicalize(firefox_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(firefox_path_buf_input.to_str().unwrap())),
+	};
+
+	let mut deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(vault_path_buf.join(".vaultist-vault"))).unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	assert!(
+		argon2::Argon2::default()
+			.verify_password(
+				verify_password.as_bytes(),
+				&PasswordHash::new(&deserialised_vault.key).unwrap()
+			)
+			.is_ok(),
+		"❌ Could not access vault with that password."
+	);
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let index = Index::open(MmapDirectory::open(vault_path_buf.clone()).unwrap()).unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
+	let mut index_writer = index.writer(100_000_000).unwrap();
+
+	let firefox_secrets = vaultist::get_secrets_from_firefox(firefox_path_buf); // Grab items from vault exported from Firefox
+	let firefox_secrets_len = firefox_secrets.len();
+	for mut firefox_secret in firefox_secrets {
+		let encrypted_secret = deserialised_vault.encrypt_secret(&mut firefox_secret);
+		write_file(
+			vault_path_buf.join(filenamify(
+				firefox_secret.entry.clone().id.to_string() + ".vaultist",
+			)),
+			&encrypted_secret,
+		);
+
+		write_file(
+			vault_path_buf.join(".vaultist-vault"),
+			&bincode::serialize(&deserialised_vault).unwrap(),
+		);
+
+		index_writer
+			.add_document(doc!(
+				name => firefox_secret.entry.clone().name,
+				id => firefox_secret.entry.clone().id.to_string(),
+				last_modified => firefox_secret.entry.clone().last_modified.to_rfc2822(),
+			))
+			.unwrap();
+	}
+	index_writer.commit().unwrap();
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"\n⏰ Imported {} secret(s) from Firefox in {} seconds.",
+		firefox_secrets_len,
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();

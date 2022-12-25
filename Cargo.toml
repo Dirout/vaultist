@@ -78,6 +78,7 @@ serde = "1.0.151"
 serde_json = { version = "1.0.91", features = ["std"] }
 stopwatch = "0.0.7"
 tantivy = { version = "0.19.0", features = ["mmap", "lz4-compression"] }
+url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.2.2", features = ["serde", "fast-rng", "v7", "macro-diagnostics"] }
 vector-map = "1.0.1"
 wild = "2.1.0"

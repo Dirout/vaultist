@@ -29,6 +29,8 @@ use blake2::digest::VariableOutput;
 use blake2::Blake2bVar;
 use chacha20poly1305::aead::{Aead, AeadCore};
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
+use chrono::NaiveDateTime;
+use chrono::Utc;
 use convert_case::{Case, Casing};
 use derive_more::{Constructor, From, Into};
 use itertools::Itertools;
@@ -40,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::path::PathBuf;
+use url::Url;
 use uuid::Uuid;
 use zxcvbn::zxcvbn;
 
@@ -202,7 +205,7 @@ pub struct BitwardenFolder {
 	zeroize::Zeroize,
 	zeroize::ZeroizeOnDrop,
 )]
-/// A record in a Bitwarden exported in CSV format
+/// A record in a Bitwarden vault exported in CSV format
 pub struct BitwardenRecordCSV {
 	/// The name of the folder the record is in
 	pub folder: Option<String>,
@@ -541,6 +544,47 @@ impl Display for BitwardenIdentity {
 			self.title.clone().unwrap_or(String::from("None")), self.first_name.clone().unwrap_or(String::from("None")), self.last_name.clone().unwrap_or(String::from("None")), self.address1.clone().unwrap_or(String::from("None")), self.address2.clone().unwrap_or(String::from("None")), self.address3.clone().unwrap_or(String::from("None")), self.city.clone().unwrap_or(String::from("None")), self.state.clone().unwrap_or(String::from("None")), self.postal_code.clone().unwrap_or(String::from("None")), self.country.clone().unwrap_or(String::from("None")), self.company.clone().unwrap_or(String::from("None")), self.email.clone().unwrap_or(String::from("None")), self.phone.clone().unwrap_or(String::from("None")), self.ssn.clone().unwrap_or(String::from("None")), self.username.clone().unwrap_or(String::from("None")), self.passport_number.clone().unwrap_or(String::from("None")), self.license_number.clone().unwrap_or(String::from("None"))
 		)
 	}
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A record in a Firefox vault
+pub struct FirefoxRecord {
+	/// The URL of the record
+	pub url: String,
+	/// The username of the record
+	pub username: Option<String>,
+	/// The password of the record
+	pub password: String,
+	#[serde(rename = "httpRealm")]
+	/// The HTTP realm of the record
+	pub http_realm: Option<String>,
+	#[serde(rename = "formActionOrigin")]
+	/// The form action where the record originated from
+	pub form_action_origin: String,
+	/// The ID of the record
+	pub guid: String,
+	#[serde(rename = "timeCreated")]
+	/// The time the record was created
+	pub time_created: u64,
+	#[serde(rename = "timeLastUsed")]
+	/// The time the record was last used (or when it was created, if not yet used)
+	pub time_last_used: u64,
+	#[serde(rename = "timePasswordChanged")]
+	/// The time the record's password was last changed (or when it was created, if not yet changed)
+	pub time_password_changed: u64,
 }
 
 /// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
@@ -988,7 +1032,7 @@ pub fn get_secrets_from_bitwarden_json(path: PathBuf) -> Vec<Secret> {
 
 		let new_entry = Entry {
 			name: record.name.clone(),
-			id: Uuid::new_v4(),
+			id: Uuid::now_v7(),
 			hash: content_hash.to_vec(),
 			last_modified: chrono::offset::Utc::now(),
 		};
@@ -1039,9 +1083,72 @@ pub fn get_secrets_from_bitwarden_csv(path: PathBuf) -> Vec<Secret> {
 
 		let new_entry = Entry {
 			name: record.name.clone(),
-			id: Uuid::new_v4(),
+			id: Uuid::now_v7(),
 			hash: content_hash.to_vec(),
 			last_modified: chrono::offset::Utc::now(),
+		};
+
+		let new_secret = Secret {
+			entry: new_entry,
+			contents: contents.as_bytes().to_vec(),
+			nonce: generate_nonce().to_vec(),
+		};
+
+		secrets.push(new_secret);
+	}
+	secrets
+}
+
+/// Gets a list of secrets from an exported Firefox vault.
+///
+/// # Arguments
+///
+/// * `path` - The path to the exported Firefox vault.
+pub fn get_secrets_from_firefox(path: PathBuf) -> Vec<Secret> {
+	let file = std::fs::File::open(path).unwrap();
+	let reader = std::io::BufReader::new(file);
+
+	let mut secrets: Vec<Secret> = Vec::new();
+
+	let mut csv_reader = csv::Reader::from_reader(reader);
+	for result in csv_reader.deserialize() {
+		let record: FirefoxRecord = result.unwrap();
+
+		let contents = format!(
+			"URL: {}\nUsername: {}\nPassword: {}",
+			record.url,
+			record
+				.username
+				.clone()
+				.or(Some(String::from("None")))
+				.unwrap(),
+			record.password
+		);
+
+		let mut hasher = Blake2bVar::new(64).unwrap();
+		hasher.update(contents.as_bytes());
+		let mut content_hash = [0u8; 64];
+		hasher.finalize_variable(&mut content_hash).unwrap();
+
+		let new_entry = Entry {
+			name: format!(
+				"{} ({})",
+				Url::parse(&record.url).unwrap().host_str().unwrap(),
+				record
+					.username
+					.clone()
+					.or(Some(String::from("no username")))
+					.unwrap()
+			),
+			id: Uuid::now_v7(),
+			hash: content_hash.to_vec(),
+			last_modified: chrono::DateTime::<Utc>::from_utc(
+				NaiveDateTime::from_timestamp_millis(
+					record.time_password_changed.try_into().unwrap(),
+				)
+				.unwrap(),
+				Utc,
+			),
 		};
 
 		let new_secret = Secret {
