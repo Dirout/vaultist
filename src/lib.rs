@@ -1120,8 +1120,7 @@ pub fn get_secrets_from_firefox(path: PathBuf) -> Vec<Secret> {
 			record
 				.username
 				.clone()
-				.or(Some(String::from("None")))
-				.unwrap(),
+				.unwrap_or(String::from("None")),
 			record.password
 		);
 
@@ -1137,8 +1136,7 @@ pub fn get_secrets_from_firefox(path: PathBuf) -> Vec<Secret> {
 				record
 					.username
 					.clone()
-					.or(Some(String::from("no username")))
-					.unwrap()
+					.unwrap_or(String::from("no username"))
 			),
 			id: Uuid::now_v7(),
 			hash: content_hash.to_vec(),
