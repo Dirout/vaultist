@@ -1035,6 +1035,26 @@
 <a href="#1034" id="1034">1034</a>
 <a href="#1035" id="1035">1035</a>
 <a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
 </pre><pre class="rust"><code><span class="comment">/*
 	This file is part of Vaultist.
 	Vaultist is free software: you can redistribute it and/or modify
@@ -1290,7 +1310,15 @@
 	</span><span class="kw">pub </span>folder_id: <span class="prelude-ty">Option</span>&lt;String&gt;,
 	<span class="attr">#[zeroize(skip)]
 	#[serde(rename = <span class="string">&quot;type&quot;</span>)]
-	</span><span class="doccomment">/// The type of the record. Can be: Login (1), Secure Note (2), Card (3), or Identity (4)
+	</span><span class="doccomment">/// The type of the record (see: &lt;https://bitwarden.com/help/managing-items/&gt;).
+	///
+	/// Can be:
+	/// - Login (1)
+	/// - Secure Note (2)
+	/// - Card (3)
+	/// - Identity (4)
+	///
+	/// See: &lt;https://bitwarden.com/help/cli/#enums&gt;
 	</span><span class="kw">pub </span>type_: usize,
 	<span class="doccomment">/// Whether or not the vault password should be reprompted to view the record
 	</span><span class="kw">pub </span>reprompt: <span class="prelude-ty">Option</span>&lt;usize&gt;,
@@ -1345,7 +1373,14 @@
 	<span class="doccomment">/// The value of the field
 	</span><span class="kw">pub </span>value: String,
 	<span class="attr">#[serde(rename = <span class="string">&quot;type&quot;</span>)]
-	</span><span class="doccomment">/// The type of the field
+	</span><span class="doccomment">/// The type of the field (see: &lt;https://bitwarden.com/help/custom-fields/&gt;).
+	///
+	/// Can be:
+	/// - Text (0)
+	/// - Hidden (1)
+	/// - Boolean (2)
+	///
+	/// See: &lt;https://bitwarden.com/help/cli/#enums&gt;
 	</span><span class="kw">pub </span>type_: usize,
 }
 
@@ -1391,15 +1426,9 @@
 			f,
 			<span class="string">&quot;Login URI: {}\nUsername: {}\nPassword: {}\nTOTP: {}&quot;</span>,
 			uris_str,
-			<span class="self">self</span>.username
-				.clone()
-				.or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>)))
-				.unwrap(),
-			<span class="self">self</span>.password
-				.clone()
-				.or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>)))
-				.unwrap(),
-			<span class="self">self</span>.totp.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap()
+			<span class="self">self</span>.username.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)),
+			<span class="self">self</span>.password.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)),
+			<span class="self">self</span>.totp.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>))
 		)
 	}
 }
@@ -1418,9 +1447,20 @@
 	zeroize::Zeroize,
 	zeroize::ZeroizeOnDrop,
 )]
+</span><span class="doccomment">/// A URI in a Bitwarden login record
 </span><span class="kw">pub struct </span>BitwardenURI {
 	<span class="attr">#[serde(rename = <span class="string">&quot;match&quot;</span>)]
-	</span><span class="doccomment">/// The match of the URI
+	</span><span class="doccomment">/// The match detection option of the URI (see: &lt;https://bitwarden.com/help/uri-match-detection/#match-detection-options&gt;).
+	///
+	/// Can be:
+	/// - Domain (0)
+	/// - Host (1)
+	/// - Starts With (2)
+	/// - Exact (3)
+	/// - Regular Expression (4)
+	/// - Never (5)
+	///
+	/// See: &lt;https://bitwarden.com/help/cli/#enums&gt;
 	</span><span class="kw">pub </span>match_: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 	<span class="doccomment">/// The URI
 	</span><span class="kw">pub </span>uri: String,
@@ -1485,7 +1525,7 @@
 		<span class="macro">write!</span>(
 			f,
 			<span class="string">&quot;Cardholder name: {}\nBrand: {}\nNumber: {}\nExpiration month: {}\nExpiration year: {}\nCode: {}&quot;</span>,
-			<span class="self">self</span>.cardholder_name.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.brand.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.number.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.exp_month.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.exp_year.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.code.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap()
+			<span class="self">self</span>.cardholder_name.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.brand.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.number.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.exp_month.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.exp_year.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.code.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>))
 		)
 	}
 }
@@ -1555,7 +1595,7 @@
 		<span class="macro">write!</span>(
 			f,
 			<span class="string">&quot;Title: {}\nFirst name: {}\nLast name: {}\nAddress 1: {}\nAddress 2: {}\nAddress 3: {}\nCity: {}\nState: {}\nPostal code: {}\nCountry: {}\nCompany: {}\nEmail: {}\nPhone: {}\nSSN: {}\nUsername: {}\nPassport number: {}\nLicense number: {}&quot;</span>,
-			<span class="self">self</span>.title.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.first_name.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.last_name.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.address1.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.address2.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.address3.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.city.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.state.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.postal_code.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.country.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.company.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.email.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.phone.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.ssn.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.username.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.passport_number.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), <span class="self">self</span>.license_number.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap()
+			<span class="self">self</span>.title.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.first_name.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.last_name.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.address1.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.address2.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.address3.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.city.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.state.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.postal_code.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.country.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.company.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.email.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.phone.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.ssn.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.username.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.passport_number.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), <span class="self">self</span>.license_number.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>))
 		)
 	}
 }
@@ -1983,7 +2023,7 @@
 			}
 			<span class="prelude-val">None </span>=&gt; String::from(<span class="string">&quot;None&quot;</span>),
 		};
-		<span class="kw">let </span>value_str = <span class="kw">match </span>record.type_.clone() {
+		<span class="kw">let </span>value_str = <span class="kw">match </span>record.type_ {
 			<span class="number">1 </span>=&gt; record.login.clone().unwrap().to_string(),
 			<span class="number">2 </span>=&gt; <span class="string">&quot;Type: Secure note&quot;</span>.to_string(),
 			<span class="number">3 </span>=&gt; record.card.clone().unwrap().to_string(),
@@ -1994,7 +2034,7 @@
 		<span class="kw">let </span>contents = <span class="macro">format!</span>(
 			<span class="string">&quot;{}\nNotes:\n{}\nFields:\n{}\n&quot;</span>,
 			value_str,
-			record.notes.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(),
+			record.notes.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)),
 			fields_str
 		);
 
@@ -2047,7 +2087,7 @@
 			}
 			<span class="prelude-val">None </span>=&gt; String::from(<span class="string">&quot;None&quot;</span>),
 		};
-		<span class="kw">let </span>contents = <span class="macro">format!</span>(<span class="string">&quot;Login URI: {}\nLogin username: {}\nLogin password: {}\nLogin TOTP: {}\nNotes:\n{}\nFields:\n{}\n&quot;</span>, record.login_uri.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), record.login_username.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), record.login_password.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), record.login_totp.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), record.notes.clone().or(<span class="prelude-val">Some</span>(String::from(<span class="string">&quot;None&quot;</span>))).unwrap(), fields_str);
+		<span class="kw">let </span>contents = <span class="macro">format!</span>(<span class="string">&quot;Login URI: {}\nLogin username: {}\nLogin password: {}\nLogin TOTP: {}\nNotes:\n{}\nFields:\n{}\n&quot;</span>, record.login_uri.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), record.login_username.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), record.login_password.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), record.login_totp.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), record.notes.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)), fields_str);
 
 		<span class="kw">let </span><span class="kw-2">mut </span>hasher = Blake2bVar::new(<span class="number">64</span>).unwrap();
 		hasher.update(contents.as_bytes());
