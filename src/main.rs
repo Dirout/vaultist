@@ -93,6 +93,9 @@ lazy_static! {
 		.arg(arg!(-t --strict "Whether or not the password rules are strictly followed for each generated password").required(false).value_parser(value_parser!(bool))))
 	.subcommand(Command::new("analyse").about("Analyses a password")
 		.arg(arg!(password: "The password to be analysed").required(false).value_parser(value_parser!(String))))
+	.subcommand(Command::new("import_bitwarden").about("Import items from a Bitwarden vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(BITWARDEN_EXPORT_PATH: "Path to an exported Bitwarden vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
 	.get_matches_from(wild::args());
 }
 
@@ -169,6 +172,9 @@ fn main() {
 		Some(("analyse", analyse_matches)) => {
 			analyse_password(analyse_matches);
 		}
+		Some(("import_bitwarden", import_bitwarden_matches)) => {
+			import_bitwarden(import_bitwarden_matches);
+		}
 		None => writeln!(buf_out, "Vaultist {}", crate_version!()).unwrap(),
 		_ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
 	}
@@ -217,7 +223,10 @@ fn new_vault(matches: &clap::ArgMatches) {
 	let password_feedback = vaultist::get_password_feedback(init_attempt_password);
 	assert!(password_feedback.0, "{}", password_feedback.1);
 
-	let new_vault = vaultist::create_vault_from_password(confirm_attempt_password);
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+	let new_vault = vaultist::create_vault_from_password(confirm_attempt_password); // Create the vault
+	timer.stop(); // Stop the stopwatch
+
 	let verify_attempt_password = rpassword::prompt_password_from_bufread(
 		&mut buf_in,
 		&mut buf_out,
@@ -234,7 +243,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 		"❌ Could not create a secure vault with that password."
 	);
 
-	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+	timer.start(); // Resume the stopwatch
 
 	write_file(
 		path_buf.join(".vaultist-vault"),
@@ -421,7 +430,6 @@ fn see_item(matches: &clap::ArgMatches) {
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
-	let mut i = 1;
 	for (_score, doc_address) in results {
 		let retrieved_doc = searcher.doc(doc_address).unwrap();
 		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
@@ -432,15 +440,13 @@ fn see_item(matches: &clap::ArgMatches) {
 			.unwrap();
 		result_options.insert(
 			format!(
-				"{}. {} ({}; {})",
-				i,
+				"{} ({}; {})",
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
 				retrieved_date
 			),
 			Uuid::parse_str(retrieved_id).unwrap(),
 		);
-		i += 1;
 	}
 
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
@@ -564,7 +570,6 @@ fn change_item(matches: &clap::ArgMatches) {
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
-	let mut i = 1;
 	for (_score, doc_address) in results {
 		let retrieved_doc = searcher.doc(doc_address).unwrap();
 		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
@@ -575,15 +580,13 @@ fn change_item(matches: &clap::ArgMatches) {
 			.unwrap();
 		result_options.insert(
 			format!(
-				"{}. {} ({}; {})",
-				i,
+				"{} ({}; {})",
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
 				retrieved_date
 			),
 			Uuid::parse_str(retrieved_id).unwrap(),
 		);
-		i += 1;
 	}
 
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
@@ -753,7 +756,6 @@ fn remove_item(matches: &clap::ArgMatches) {
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
-	let mut i = 1;
 	for (_score, doc_address) in results {
 		let retrieved_doc = searcher.doc(doc_address).unwrap();
 		let retrieved_id = retrieved_doc.get_first(id).unwrap().as_text().unwrap();
@@ -764,15 +766,13 @@ fn remove_item(matches: &clap::ArgMatches) {
 			.unwrap();
 		result_options.insert(
 			format!(
-				"{}. {} ({}; {})",
-				i,
+				"{} ({}; {})",
 				retrieved_doc.get_first(name).unwrap().as_text().unwrap(),
 				retrieved_id,
 				retrieved_date
 			),
 			Uuid::parse_str(retrieved_id).unwrap(),
 		);
-		i += 1;
 	}
 
 	let result_options_keys: Vec<&String> = result_options.keys().collect();
@@ -873,11 +873,24 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
+	let mut schema_builder = Schema::builder();
+	let _name = schema_builder.add_text_field("title", TEXT | STORED);
+	let id = schema_builder.add_text_field("id", TEXT | STORED);
+	let _last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
+	let schema = schema_builder.build();
+	let index =
+		Index::open_or_create(MmapDirectory::open(path_buf.clone()).unwrap(), schema).unwrap();
+	let mut index_writer = index.writer(100_000_000).unwrap();
+
 	let duplicate_items = deserialised_vault.deduplicate_items(ignore_names);
 	for item in duplicate_items {
 		std::fs::remove_file(path_buf.join(filenamify(item.0.id.to_string() + ".vaultist")))
 			.unwrap();
+		let secret_id_term =
+			tantivy::schema::Term::from_field_text(id, &item.clone().0.id.to_string());
+		index_writer.delete_term(secret_id_term);
 	}
+	index_writer.commit().unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -1103,6 +1116,107 @@ fn analyse_password(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n⏰ Analysed password in {} seconds.",
+		(timer.elapsed_ms() as f32 / 1000.0)
+	)
+	.unwrap();
+}
+
+/// Import items from a Bitwarden vault.
+///
+/// # Arguments
+///
+/// * `PATH` - Path to a Bitwarden vault in the filesystem (required).
+fn import_bitwarden(matches: &clap::ArgMatches) {
+	let stdin = std::io::stdin();
+	let stdout = std::io::stdout();
+	let stdin_lock = stdin.lock();
+	let stdout_lock = stdout.lock();
+	let mut buf_in = BufReader::new(stdin_lock);
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let vault_path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let vault_path_buf = match std::fs::canonicalize(vault_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(vault_path_buf_input.to_str().unwrap())),
+	};
+
+	let bitwarden_path_buf_input = matches
+		.get_one::<PathBuf>("BITWARDEN_EXPORT_PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let bitwarden_path_buf = match std::fs::canonicalize(bitwarden_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir().unwrap().join(path_clean::clean(
+			bitwarden_path_buf_input.to_str().unwrap(),
+		)),
+	};
+
+	let mut deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(vault_path_buf.join(".vaultist-vault"))).unwrap();
+	let verify_password = rpassword::prompt_password_from_bufread(
+		&mut buf_in,
+		&mut buf_out,
+		"🔑 Enter your vault password: ",
+	)
+	.unwrap();
+	assert!(
+		argon2::Argon2::default()
+			.verify_password(
+				verify_password.as_bytes(),
+				&PasswordHash::new(&deserialised_vault.key).unwrap()
+			)
+			.is_ok(),
+		"❌ Could not access vault with that password."
+	);
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let mut schema_builder = Schema::builder();
+	let name = schema_builder.add_text_field("title", TEXT | STORED);
+	let id = schema_builder.add_text_field("id", TEXT | STORED);
+	let last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
+	let schema = schema_builder.build();
+	let index = Index::open_or_create(MmapDirectory::open(vault_path_buf.clone()).unwrap(), schema)
+		.unwrap();
+	let mut index_writer = index.writer(100_000_000).unwrap();
+
+	let bitwarden_secrets = vaultist::get_secrets_from_bitwarden(bitwarden_path_buf).unwrap(); // Grab items from vault exported from Bitwarden
+	let bitwarden_secrets_len = bitwarden_secrets.len();
+	for mut bitwarden_secret in bitwarden_secrets {
+		let encrypted_secret = deserialised_vault.encrypt_secret(&mut bitwarden_secret);
+		write_file(
+			vault_path_buf.join(filenamify(
+				bitwarden_secret.entry.clone().id.to_string() + ".vaultist",
+			)),
+			&encrypted_secret,
+		);
+
+		write_file(
+			vault_path_buf.join(".vaultist-vault"),
+			&bincode::serialize(&deserialised_vault).unwrap(),
+		);
+
+		index_writer
+			.add_document(doc!(
+				name => bitwarden_secret.entry.clone().name,
+				id => bitwarden_secret.entry.clone().id.to_string(),
+				last_modified => bitwarden_secret.entry.clone().last_modified.to_rfc2822(),
+			))
+			.unwrap();
+	}
+	index_writer.commit().unwrap();
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"\n⏰ Imported {} secret(s) from Bitwarden in {} seconds.",
+		bitwarden_secrets_len,
 		(timer.elapsed_ms() as f32 / 1000.0)
 	)
 	.unwrap();

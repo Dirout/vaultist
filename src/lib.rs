@@ -24,6 +24,9 @@
 use ansi_term::Colour;
 use argon2::password_hash::SaltString;
 use argon2::PasswordHasher;
+use blake2::digest::Update;
+use blake2::digest::VariableOutput;
+use blake2::Blake2bVar;
 use chacha20poly1305::aead::{Aead, AeadCore};
 use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
 use convert_case::{Case, Casing};
@@ -34,6 +37,9 @@ use passwords::{analyzer, scorer};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::path::PathBuf;
 use uuid::Uuid;
 use zxcvbn::zxcvbn;
 
@@ -46,6 +52,7 @@ lazy_static! {
 	pub static ref ELEMENTS: Vec<CorrectHorseBatteryStapleElements> = vec![CorrectHorseBatteryStapleElements::WORD, CorrectHorseBatteryStapleElements::DIGIT];
 }
 
+#[derive(Eq, PartialEq, PartialOrd, Clone, Debug, Serialize, Deserialize, From, Hash)]
 /// The possible elements of a `CorrectHorseBatteryStaple`-type password
 pub enum CorrectHorseBatteryStapleElements {
 	/// An English-language word
@@ -135,6 +142,385 @@ pub struct Secret {
 	pub contents: Vec<u8>,
 	/// The nonce used to encrypt the secret
 	pub nonce: Vec<u8>,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// An exported Bitwarden vault
+pub struct BitwardenVault {
+	/// The folders in the vault
+	pub folders: Vec<BitwardenFolder>,
+	/// The items in the vault
+	pub items: Vec<BitwardenRecordJSON>,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A folder in a Bitwarden vault
+pub struct BitwardenFolder {
+	/// The ID of the folder
+	pub id: String,
+	/// The name of the folder
+	pub name: String,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A record in a Bitwarden exported in CSV format
+pub struct BitwardenRecordCSV {
+	/// The name of the folder the record is in
+	pub folder: Option<String>,
+	/// Whether or not the record is a favourite
+	pub favorite: Option<usize>,
+	#[serde(rename = "type")]
+	/// The type of the record
+	pub type_: String,
+	/// The name of the record
+	pub name: String,
+	/// The notes associated with the record
+	pub notes: Option<String>,
+	/// The fields associated with the record
+	pub fields: Option<Vec<BitwardenField>>,
+	/// Whether or not the vault password should be reprompted to view the record
+	pub reprompt: Option<usize>,
+	/// The login URI of the record
+	pub login_uri: Option<String>,
+	/// The login username of the record
+	pub login_username: Option<String>,
+	/// The login password of the record
+	pub login_password: Option<String>,
+	/// The login TOTP of the record
+	pub login_totp: Option<String>,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A record in a Bitwarden vault exported in JSON format
+pub struct BitwardenRecordJSON {
+	/// The ID of the record
+	pub id: String,
+	/// The ID of the organisation the record is in
+	pub organization_id: Option<String>,
+	/// The ID of the folder the record is in
+	pub folder_id: Option<String>,
+	#[zeroize(skip)]
+	#[serde(rename = "type")]
+	/// The type of the record. Can be: Login (1), Secure Note (2), Card (3), or Identity (4)
+	pub type_: usize,
+	/// Whether or not the vault password should be reprompted to view the record
+	pub reprompt: Option<usize>,
+	/// The name of the record
+	pub name: String,
+	/// The notes associated with the record
+	pub notes: Option<String>,
+	/// Whether or not the record is a favourite
+	pub favorite: bool,
+	/// The fields associated with the record
+	pub fields: Option<Vec<BitwardenField>>,
+	/// The login information associated with the record
+	pub login: Option<BitwardenLogin>,
+	/// The secure note information associated with the record
+	pub secure_note: Option<BitwardenSecureNote>,
+	/// The card information associated with the record
+	pub card: Option<BitwardenCard>,
+	/// The identity information associated with the record
+	pub identity: Option<BitwardenIdentity>,
+	/// The IDs of the collections the record is in
+	pub collection_ids: Option<Vec<String>>,
+}
+
+impl Display for BitwardenField {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"Name: {}\nValue: {}\nType: {}",
+			self.name, self.value, self.type_
+		)
+	}
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A field in a Bitwarden record
+pub struct BitwardenField {
+	/// The name of the field
+	pub name: String,
+	/// The value of the field
+	pub value: String,
+	#[serde(rename = "type")]
+	/// The type of the field
+	pub type_: usize,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A login Bitwarden record
+pub struct BitwardenLogin {
+	/// The URIs associated with the login record
+	pub uris: Option<Vec<BitwardenURI>>,
+	/// The username associated with the login record
+	pub username: Option<String>,
+	/// The password associated with the login record
+	pub password: Option<String>,
+	/// The TOTP associated with the login record
+	pub totp: Option<String>,
+}
+
+impl Display for BitwardenLogin {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		let uris_str = match self.uris {
+			Some(ref uris) => {
+				let mut uris_strs: Vec<String> = Vec::new();
+				for uri in uris {
+					uris_strs.push(uri.uri.clone());
+				}
+				uris_strs.join(", ")
+			}
+			None => String::from("None"),
+		};
+		write!(
+			f,
+			"Login URI: {}\nUsername: {}\nPassword: {}\nTOTP: {}",
+			uris_str,
+			self.username
+				.clone()
+				.or(Some(String::from("None")))
+				.unwrap(),
+			self.password
+				.clone()
+				.or(Some(String::from("None")))
+				.unwrap(),
+			self.totp.clone().or(Some(String::from("None"))).unwrap()
+		)
+	}
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+pub struct BitwardenURI {
+	#[serde(rename = "match")]
+	/// The match of the URI
+	pub match_: Option<usize>,
+	/// The URI
+	pub uri: String,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A secure note Bitwarden record
+pub struct BitwardenSecureNote {
+	#[serde(rename = "type")]
+	/// The type of the secure note
+	pub type_: usize,
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A card Bitwarden record
+pub struct BitwardenCard {
+	#[serde(rename = "cardholderName")]
+	/// The cardholder name of the card
+	pub cardholder_name: Option<String>,
+	/// The brand of the card
+	pub brand: Option<String>,
+	/// The number of the card
+	pub number: Option<String>,
+	#[serde(rename = "expMonth")]
+	/// The expiration month of the card
+	pub exp_month: Option<String>,
+	#[serde(rename = "expYear")]
+	/// The expiration year of the card
+	pub exp_year: Option<String>,
+	/// The code of the card
+	pub code: Option<String>,
+}
+
+impl Display for BitwardenCard {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"Cardholder name: {}\nBrand: {}\nNumber: {}\nExpiration month: {}\nExpiration year: {}\nCode: {}",
+			self.cardholder_name.clone().or(Some(String::from("None"))).unwrap(), self.brand.clone().or(Some(String::from("None"))).unwrap(), self.number.clone().or(Some(String::from("None"))).unwrap(), self.exp_month.clone().or(Some(String::from("None"))).unwrap(), self.exp_year.clone().or(Some(String::from("None"))).unwrap(), self.code.clone().or(Some(String::from("None"))).unwrap()
+		)
+	}
+}
+
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// An identity Bitwarden record
+pub struct BitwardenIdentity {
+	/// The title of the person with the identity
+	pub title: Option<String>,
+	#[serde(rename = "firstName")]
+	/// The first name of the person with the identity
+	pub first_name: Option<String>,
+	#[serde(rename = "middleName")]
+	/// The middle name of the person with the identity
+	pub middle_name: Option<String>,
+	#[serde(rename = "lastName")]
+	/// The last name of the person with the identity
+	pub last_name: Option<String>,
+	/// The first line of the address of the person with the identity
+	pub address1: Option<String>,
+	/// The second line of the address of the person with the identity
+	pub address2: Option<String>,
+	/// The third line of the address of the person with the identity
+	pub address3: Option<String>,
+	/// The city of the address of the person with the identity
+	pub city: Option<String>,
+	/// The state of the address of the person with the identity
+	pub state: Option<String>,
+	#[serde(rename = "postalCode")]
+	/// The postal code of the address of the person with the identity
+	pub postal_code: Option<String>,
+	/// The country of the address of the person with the identity
+	pub country: Option<String>,
+	/// The company of the person with the identity
+	pub company: Option<String>,
+	/// The email of the person with the identity
+	pub email: Option<String>,
+	/// The phone of the person with the identity
+	pub phone: Option<String>,
+	/// The Social Security number of the person with the identity
+	pub ssn: Option<String>,
+	/// The username of the person with the identity
+	pub username: Option<String>,
+	#[serde(rename = "passportNumber")]
+	/// The passport number of the person with the identity
+	pub passport_number: Option<String>,
+	#[serde(rename = "licenseNumber")]
+	/// The license number of the person with the identity
+	pub license_number: Option<String>,
+}
+
+impl Display for BitwardenIdentity {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"Title: {}\nFirst name: {}\nLast name: {}\nAddress 1: {}\nAddress 2: {}\nAddress 3: {}\nCity: {}\nState: {}\nPostal code: {}\nCountry: {}\nCompany: {}\nEmail: {}\nPhone: {}\nSSN: {}\nUsername: {}\nPassport number: {}\nLicense number: {}",
+			self.title.clone().or(Some(String::from("None"))).unwrap(), self.first_name.clone().or(Some(String::from("None"))).unwrap(), self.last_name.clone().or(Some(String::from("None"))).unwrap(), self.address1.clone().or(Some(String::from("None"))).unwrap(), self.address2.clone().or(Some(String::from("None"))).unwrap(), self.address3.clone().or(Some(String::from("None"))).unwrap(), self.city.clone().or(Some(String::from("None"))).unwrap(), self.state.clone().or(Some(String::from("None"))).unwrap(), self.postal_code.clone().or(Some(String::from("None"))).unwrap(), self.country.clone().or(Some(String::from("None"))).unwrap(), self.company.clone().or(Some(String::from("None"))).unwrap(), self.email.clone().or(Some(String::from("None"))).unwrap(), self.phone.clone().or(Some(String::from("None"))).unwrap(), self.ssn.clone().or(Some(String::from("None"))).unwrap(), self.username.clone().or(Some(String::from("None"))).unwrap(), self.passport_number.clone().or(Some(String::from("None"))).unwrap(), self.license_number.clone().or(Some(String::from("None"))).unwrap()
+		)
+	}
 }
 
 /// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
@@ -521,4 +907,130 @@ pub fn get_password_feedback(password: String) -> (bool, String) {
 	};
 
 	(is_ok, feedback)
+}
+
+/// Gets a list of secrets from an exported Bitwarden vault.
+///
+/// # Arguments
+///
+/// * `path` - The path to the exported Bitwarden vault.
+pub fn get_secrets_from_bitwarden(path: PathBuf) -> Result<Vec<Secret>, &'static str> {
+	match path.extension().unwrap().to_str().unwrap() {
+		"csv" => Ok(get_secrets_from_bitwarden_csv(path)),
+		"json" => Ok(get_secrets_from_bitwarden_json(path)),
+		_ => Err("Invalid file extension."),
+	}
+}
+
+/// Gets a list of secrets from an exported Bitwarden vault in JSON format.
+///
+/// # Arguments
+///
+/// * `path` - The path to the exported Bitwarden vault.
+pub fn get_secrets_from_bitwarden_json(path: PathBuf) -> Vec<Secret> {
+	let file = std::fs::File::open(path).unwrap();
+	let reader = std::io::BufReader::new(file);
+
+	let mut secrets: Vec<Secret> = Vec::new();
+
+	let json_reader: BitwardenVault = serde_json::from_reader(reader).unwrap();
+
+	for record in json_reader.items.clone() {
+		let fields_str = match record.fields.clone() {
+			Some(fields) => {
+				let mut fields_strs: Vec<String> = Vec::new();
+				for field in fields {
+					fields_strs.push(field.to_string());
+				}
+				fields_strs.join("\n")
+			}
+			None => String::from("None"),
+		};
+		let value_str = match record.type_.clone() {
+			1 => record.login.clone().unwrap().to_string(),
+			2 => "Type: Secure note".to_string(),
+			3 => record.card.clone().unwrap().to_string(),
+			4 => record.identity.clone().unwrap().to_string(),
+			_ => "".to_string(),
+		};
+
+		let contents = format!(
+			"{}\nNotes:\n{}\nFields:\n{}\n",
+			value_str,
+			record.notes.clone().or(Some(String::from("None"))).unwrap(),
+			fields_str
+		);
+
+		let mut hasher = Blake2bVar::new(64).unwrap();
+		hasher.update(contents.as_bytes());
+		let mut content_hash = [0u8; 64];
+		hasher.finalize_variable(&mut content_hash).unwrap();
+
+		let new_entry = Entry {
+			name: record.name.clone(),
+			id: Uuid::new_v4(),
+			hash: content_hash.to_vec(),
+			last_modified: chrono::offset::Utc::now(),
+		};
+
+		let new_secret = Secret {
+			entry: new_entry,
+			contents: contents.as_bytes().to_vec(),
+			nonce: generate_nonce().to_vec(),
+		};
+
+		secrets.push(new_secret);
+	}
+
+	secrets
+}
+
+/// Gets a list of secrets from an exported Bitwarden vault in CSV format.
+///
+/// # Arguments
+///
+/// * `path` - The path to the exported Bitwarden vault.
+pub fn get_secrets_from_bitwarden_csv(path: PathBuf) -> Vec<Secret> {
+	let file = std::fs::File::open(path).unwrap();
+	let reader = std::io::BufReader::new(file);
+
+	let mut secrets: Vec<Secret> = Vec::new();
+
+	let mut csv_reader = csv::Reader::from_reader(reader);
+	for result in csv_reader.deserialize() {
+		let record: BitwardenRecordCSV = result.unwrap();
+
+		let fields_str = match record.fields.clone() {
+			Some(fields) => {
+				let mut fields_strs: Vec<String> = Vec::new();
+				for field in fields {
+					fields_strs.push(field.to_string());
+				}
+				fields_strs.join("\n")
+			}
+			None => String::from("None"),
+		};
+		let contents = format!("Login URI: {}\nLogin username: {}\nLogin password: {}\nLogin TOTP: {}\nNotes:\n{}\nFields:\n{}\n", record.login_uri.clone().or(Some(String::from("None"))).unwrap(), record.login_username.clone().or(Some(String::from("None"))).unwrap(), record.login_password.clone().or(Some(String::from("None"))).unwrap(), record.login_totp.clone().or(Some(String::from("None"))).unwrap(), record.notes.clone().or(Some(String::from("None"))).unwrap(), fields_str);
+
+		let mut hasher = Blake2bVar::new(64).unwrap();
+		hasher.update(contents.as_bytes());
+		let mut content_hash = [0u8; 64];
+		hasher.finalize_variable(&mut content_hash).unwrap();
+
+		let new_entry = Entry {
+			name: record.name.clone(),
+			id: Uuid::new_v4(),
+			hash: content_hash.to_vec(),
+			last_modified: chrono::offset::Utc::now(),
+		};
+
+		let new_secret = Secret {
+			entry: new_entry,
+			contents: contents.as_bytes().to_vec(),
+			nonce: generate_nonce().to_vec(),
+		};
+
+		secrets.push(new_secret);
+	}
+	secrets
 }

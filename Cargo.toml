@@ -55,6 +55,7 @@ chacha20poly1305 = { version = "0.10.1", features = ["stream"] }
 chrono = { version = "0.4.23", features = ["unstable-locales", "serde"] }
 clap = { version = "4.0.32", features = ["cargo", "suggestions", "color", "wrap_help", "unicode"] }
 convert_case = "0.6.0"
+csv = "1.1.6"
 derive_more = { version = "0.99.17", features = ["default", "convert_case", "generate-parsing-rs", "testing-helpers", "nightly", "peg", "rustc_version" ] }
 dialoguer = { version = "0.10.2", features = ["editor", "password", "fuzzy-select"] }
 edit = "0.1.4"
@@ -74,6 +75,7 @@ rand = "0.8.5"
 rand_core = { version = "0.6.4", features = ["std", "serde1"] }
 rpassword = "7.2.0"
 serde = "1.0.151"
+serde_json = { version = "1.0.91", features = ["std"] }
 stopwatch = "0.0.7"
 tantivy = { version = "0.19.0", features = ["mmap", "lz4-compression"] }
 uuid = { version = "1.2.2", features = ["serde", "fast-rng", "v7", "macro-diagnostics"] }
