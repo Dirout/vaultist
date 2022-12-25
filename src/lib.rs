@@ -356,13 +356,11 @@ impl Display for BitwardenLogin {
 			uris_str,
 			self.username
 				.clone()
-				.or(Some(String::from("None")))
-				.unwrap(),
+				.unwrap_or(String::from("None")),
 			self.password
 				.clone()
-				.or(Some(String::from("None")))
-				.unwrap(),
-			self.totp.clone().or(Some(String::from("None"))).unwrap()
+				.unwrap_or(String::from("None")),
+			self.totp.clone().unwrap_or(String::from("None"))
 		)
 	}
 }
@@ -448,7 +446,7 @@ impl Display for BitwardenCard {
 		write!(
 			f,
 			"Cardholder name: {}\nBrand: {}\nNumber: {}\nExpiration month: {}\nExpiration year: {}\nCode: {}",
-			self.cardholder_name.clone().or(Some(String::from("None"))).unwrap(), self.brand.clone().or(Some(String::from("None"))).unwrap(), self.number.clone().or(Some(String::from("None"))).unwrap(), self.exp_month.clone().or(Some(String::from("None"))).unwrap(), self.exp_year.clone().or(Some(String::from("None"))).unwrap(), self.code.clone().or(Some(String::from("None"))).unwrap()
+			self.cardholder_name.clone().unwrap_or(String::from("None")), self.brand.clone().unwrap_or(String::from("None")), self.number.clone().unwrap_or(String::from("None")), self.exp_month.clone().unwrap_or(String::from("None")), self.exp_year.clone().unwrap_or(String::from("None")), self.code.clone().unwrap_or(String::from("None"))
 		)
 	}
 }
@@ -518,7 +516,7 @@ impl Display for BitwardenIdentity {
 		write!(
 			f,
 			"Title: {}\nFirst name: {}\nLast name: {}\nAddress 1: {}\nAddress 2: {}\nAddress 3: {}\nCity: {}\nState: {}\nPostal code: {}\nCountry: {}\nCompany: {}\nEmail: {}\nPhone: {}\nSSN: {}\nUsername: {}\nPassport number: {}\nLicense number: {}",
-			self.title.clone().or(Some(String::from("None"))).unwrap(), self.first_name.clone().or(Some(String::from("None"))).unwrap(), self.last_name.clone().or(Some(String::from("None"))).unwrap(), self.address1.clone().or(Some(String::from("None"))).unwrap(), self.address2.clone().or(Some(String::from("None"))).unwrap(), self.address3.clone().or(Some(String::from("None"))).unwrap(), self.city.clone().or(Some(String::from("None"))).unwrap(), self.state.clone().or(Some(String::from("None"))).unwrap(), self.postal_code.clone().or(Some(String::from("None"))).unwrap(), self.country.clone().or(Some(String::from("None"))).unwrap(), self.company.clone().or(Some(String::from("None"))).unwrap(), self.email.clone().or(Some(String::from("None"))).unwrap(), self.phone.clone().or(Some(String::from("None"))).unwrap(), self.ssn.clone().or(Some(String::from("None"))).unwrap(), self.username.clone().or(Some(String::from("None"))).unwrap(), self.passport_number.clone().or(Some(String::from("None"))).unwrap(), self.license_number.clone().or(Some(String::from("None"))).unwrap()
+			self.title.clone().unwrap_or(String::from("None")), self.first_name.clone().unwrap_or(String::from("None")), self.last_name.clone().unwrap_or(String::from("None")), self.address1.clone().unwrap_or(String::from("None")), self.address2.clone().unwrap_or(String::from("None")), self.address3.clone().unwrap_or(String::from("None")), self.city.clone().unwrap_or(String::from("None")), self.state.clone().unwrap_or(String::from("None")), self.postal_code.clone().unwrap_or(String::from("None")), self.country.clone().unwrap_or(String::from("None")), self.company.clone().unwrap_or(String::from("None")), self.email.clone().unwrap_or(String::from("None")), self.phone.clone().unwrap_or(String::from("None")), self.ssn.clone().unwrap_or(String::from("None")), self.username.clone().unwrap_or(String::from("None")), self.passport_number.clone().unwrap_or(String::from("None")), self.license_number.clone().unwrap_or(String::from("None"))
 		)
 	}
 }
@@ -946,7 +944,7 @@ pub fn get_secrets_from_bitwarden_json(path: PathBuf) -> Vec<Secret> {
 			}
 			None => String::from("None"),
 		};
-		let value_str = match record.type_.clone() {
+		let value_str = match record.type_ {
 			1 => record.login.clone().unwrap().to_string(),
 			2 => "Type: Secure note".to_string(),
 			3 => record.card.clone().unwrap().to_string(),
@@ -957,7 +955,7 @@ pub fn get_secrets_from_bitwarden_json(path: PathBuf) -> Vec<Secret> {
 		let contents = format!(
 			"{}\nNotes:\n{}\nFields:\n{}\n",
 			value_str,
-			record.notes.clone().or(Some(String::from("None"))).unwrap(),
+			record.notes.clone().unwrap_or(String::from("None")),
 			fields_str
 		);
 
@@ -1010,7 +1008,7 @@ pub fn get_secrets_from_bitwarden_csv(path: PathBuf) -> Vec<Secret> {
 			}
 			None => String::from("None"),
 		};
-		let contents = format!("Login URI: {}\nLogin username: {}\nLogin password: {}\nLogin TOTP: {}\nNotes:\n{}\nFields:\n{}\n", record.login_uri.clone().or(Some(String::from("None"))).unwrap(), record.login_username.clone().or(Some(String::from("None"))).unwrap(), record.login_password.clone().or(Some(String::from("None"))).unwrap(), record.login_totp.clone().or(Some(String::from("None"))).unwrap(), record.notes.clone().or(Some(String::from("None"))).unwrap(), fields_str);
+		let contents = format!("Login URI: {}\nLogin username: {}\nLogin password: {}\nLogin TOTP: {}\nNotes:\n{}\nFields:\n{}\n", record.login_uri.clone().unwrap_or(String::from("None")), record.login_username.clone().unwrap_or(String::from("None")), record.login_password.clone().unwrap_or(String::from("None")), record.login_totp.clone().unwrap_or(String::from("None")), record.notes.clone().unwrap_or(String::from("None")), fields_str);
 
 		let mut hasher = Blake2bVar::new(64).unwrap();
 		hasher.update(contents.as_bytes());
