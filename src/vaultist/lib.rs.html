@@ -1153,6 +1153,13 @@
 <a href="#1152" id="1152">1152</a>
 <a href="#1153" id="1153">1153</a>
 <a href="#1154" id="1154">1154</a>
+<a href="#1155" id="1155">1155</a>
+<a href="#1156" id="1156">1156</a>
+<a href="#1157" id="1157">1157</a>
+<a href="#1158" id="1158">1158</a>
+<a href="#1159" id="1159">1159</a>
+<a href="#1160" id="1160">1160</a>
+<a href="#1161" id="1161">1161</a>
 </pre><pre class="rust"><code><span class="comment">/*
 	This file is part of Vaultist.
 	Vaultist is free software: you can redistribute it and/or modify
@@ -1843,15 +1850,22 @@
 	/// # Arguments
 	///
 	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-	</span><span class="kw">pub fn </span>deduplicate_items(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ignore_names: bool) -&gt; <span class="kw-2">&amp;mut </span>[(Entry, Vec&lt;u8&gt;)] {
+	</span><span class="kw">pub fn </span>deduplicate_items(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ignore_names: bool) -&gt; Vec&lt;(Entry, Vec&lt;u8&gt;)&gt; {
 		<span class="self">self</span>.items.sort_by_cached_key(|x| x.<span class="number">0</span>.last_modified);
+		<span class="kw">let </span><span class="kw-2">mut </span>items_clone = <span class="self">self</span>.items.clone();
 		<span class="kw">match </span>ignore_names {
-			<span class="bool-val">true </span>=&gt; <span class="self">self</span>.items.partition_dedup_by(|a, b| a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash).<span class="number">1</span>,
+			<span class="bool-val">true </span>=&gt; {
+				<span class="kw">let </span>(dedup, duplicates) =
+					items_clone.partition_dedup_by(|a, b| a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash);
+				<span class="self">self</span>.items = dedup.to_vec();
+				duplicates.to_vec()
+			}
 			<span class="bool-val">false </span>=&gt; {
-				<span class="self">self</span>.items
-					.partition_dedup_by(|a, b| a.<span class="number">0</span>.name == b.<span class="number">0</span>.name &amp;&amp; a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash)
-					.<span class="number">1
-			</span>}
+				<span class="kw">let </span>(dedup, duplicates) = items_clone
+					.partition_dedup_by(|a, b| a.<span class="number">0</span>.name == b.<span class="number">0</span>.name &amp;&amp; a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash);
+				<span class="self">self</span>.items = dedup.to_vec();
+				duplicates.to_vec()
+			}
 		}
 	}
 
@@ -2308,4 +2322,4 @@
 	secrets
 }
 </code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="vaultist" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0-nightly (46160e6fa 2022-12-24)" data-search-js="search-181581080540673f.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-58836c674e2f7bd2.css" ></div></body></html>
+</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="vaultist" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0-nightly (8dfb33954 2022-12-25)" data-search-js="search-181581080540673f.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-58836c674e2f7bd2.css" ></div></body></html>

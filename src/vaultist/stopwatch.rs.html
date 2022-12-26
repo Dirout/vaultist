@@ -89,14 +89,43 @@
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
-</pre><pre class="rust"><code><span class="kw">use </span>std::time::{Duration, Instant};
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+</pre><pre class="rust"><code><span class="kw">use </span>std::{
+	fmt::{Display, Formatter},
+	time::{Duration, Instant},
+};
 
-<span class="attr">#[cfg_attr(feature = <span class="string">&quot;serde&quot;</span>, derive(Serialize, Deserialize))]
-#[cfg_attr(
+<span class="attr">#[cfg(feature = <span class="string">&quot;derive_more&quot;</span>)]
+</span><span class="kw">use </span>derive_more::{Div, DivAssign, From, Into, Mul, MulAssign, Rem, Shl, Shr};
+
+<span class="attr">#[cfg_attr(
 	feature = <span class="string">&quot;derive_more&quot;</span>,
-	derive(From, Into, Mul, Div, Rem, Shr, Shl, Constructor)
+	derive(From, Into, Mul, MulAssign, Div, DivAssign, Rem, Shr, Shl,)
 )]
-#[derive(Eq, PartialEq, PartialOrd, Clone, Debug, Hash)]
+#[derive(Ord, Eq, PartialEq, PartialOrd, Clone, Copy, Debug, Hash)]
 </span><span class="doccomment">/// A simple stopwatch implementation.
 </span><span class="kw">pub struct </span>Stopwatch {
 	<span class="doccomment">/// The total elapsed time.
@@ -107,14 +136,27 @@
 	</span>is_running: bool,
 }
 
-<span class="kw">impl </span>Stopwatch {
-	<span class="doccomment">/// Creates a new stopwatch.
-	</span><span class="kw">pub fn </span>new() -&gt; Stopwatch {
-		Stopwatch {
+<span class="kw">impl </span>Default <span class="kw">for </span>Stopwatch {
+	<span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+		<span class="self">Self </span>{
 			elapsed: Duration::new(<span class="number">0</span>, <span class="number">0</span>),
 			timer: Instant::now(),
 			is_running: <span class="bool-val">false</span>,
 		}
+	}
+}
+
+<span class="kw">impl </span>Display <span class="kw">for </span>Stopwatch {
+	<span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+		<span class="kw">let </span>elapsed_ms = <span class="self">self</span>.clone().elapsed_ms();
+		<span class="macro">write!</span>(f, <span class="string">&quot;{}ms&quot;</span>, elapsed_ms)
+	}
+}
+
+<span class="kw">impl </span>Stopwatch {
+	<span class="doccomment">/// Creates a new stopwatch.
+	</span><span class="kw">pub fn </span>new() -&gt; Stopwatch {
+		Stopwatch::default()
 	}
 
 	<span class="doccomment">/// Creates a new stopwatch and starts it.
@@ -138,9 +180,7 @@
 
 	<span class="doccomment">/// Resets the stopwatch.
 	</span><span class="kw">pub fn </span>reset(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-		<span class="self">self</span>.elapsed = Duration::new(<span class="number">0</span>, <span class="number">0</span>);
-		<span class="self">self</span>.timer = Instant::now();
-		<span class="self">self</span>.is_running = <span class="bool-val">false</span>;
+		<span class="kw-2">*</span><span class="self">self </span>= Stopwatch::new();
 	}
 
 	<span class="doccomment">/// Resets and starts the stopwatch.
@@ -156,7 +196,10 @@
 
 	<span class="doccomment">/// Returns the total elapsed time.
 	</span><span class="kw">pub fn </span>elapsed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
-		<span class="self">self</span>.elapsed + <span class="self">self</span>.timer.elapsed()
+		<span class="kw">match </span><span class="self">self</span>.is_running {
+			<span class="bool-val">true </span>=&gt; <span class="self">self</span>.elapsed + <span class="self">self</span>.timer.elapsed(),
+			<span class="bool-val">false </span>=&gt; <span class="self">self</span>.elapsed,
+		}
 	}
 
 	<span class="doccomment">/// Returns the total elapsed time in milliseconds.
@@ -174,10 +217,15 @@
 		<span class="self">self</span>.elapsed().as_nanos()
 	}
 
-	<span class="doccomment">/// Returns the total elapsed time in seconds.
-	</span><span class="kw">pub fn </span>elapsed_s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
+	<span class="doccomment">/// Returns the total elapsed time in fractional seconds.
+	</span><span class="kw">pub fn </span>elapsed_s(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; f64 {
+		<span class="self">self</span>.elapsed().as_secs_f64()
+	}
+
+	<span class="doccomment">/// Returns the total elapsed time in whole seconds.
+	</span><span class="kw">pub fn </span>elapsed_s_whole(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
 		<span class="self">self</span>.elapsed().as_secs()
 	}
 }
 </code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="vaultist" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0-nightly (46160e6fa 2022-12-24)" data-search-js="search-181581080540673f.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-58836c674e2f7bd2.css" ></div></body></html>
+</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="vaultist" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0-nightly (8dfb33954 2022-12-25)" data-search-js="search-181581080540673f.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-58836c674e2f7bd2.css" ></div></body></html>

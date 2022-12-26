@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"vaultist":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html\" title=\"trait core::cmp::Ord\">Ord</a> for <a class=\"struct\" href=\"vaultist/stopwatch/struct.Stopwatch.html\" title=\"struct vaultist::stopwatch::Stopwatch\">Stopwatch</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
