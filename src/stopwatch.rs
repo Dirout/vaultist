@@ -1,11 +1,16 @@
-use std::time::{Duration, Instant};
+use std::{
+	fmt::{Display, Formatter},
+	time::{Duration, Instant},
+};
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg(feature = "derive_more")]
+use derive_more::{Div, DivAssign, From, Into, Mul, MulAssign, Rem, Shl, Shr};
+
 #[cfg_attr(
 	feature = "derive_more",
-	derive(From, Into, Mul, Div, Rem, Shr, Shl, Constructor)
+	derive(From, Into, Mul, MulAssign, Div, DivAssign, Rem, Shr, Shl,)
 )]
-#[derive(Eq, PartialEq, PartialOrd, Clone, Debug, Hash)]
+#[derive(Ord, Eq, PartialEq, PartialOrd, Clone, Copy, Debug, Hash)]
 /// A simple stopwatch implementation.
 pub struct Stopwatch {
 	/// The total elapsed time.
@@ -16,14 +21,27 @@ pub struct Stopwatch {
 	is_running: bool,
 }
 
-impl Stopwatch {
-	/// Creates a new stopwatch.
-	pub fn new() -> Stopwatch {
-		Stopwatch {
+impl Default for Stopwatch {
+	fn default() -> Self {
+		Self {
 			elapsed: Duration::new(0, 0),
 			timer: Instant::now(),
 			is_running: false,
 		}
+	}
+}
+
+impl Display for Stopwatch {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		let elapsed_ms = self.clone().elapsed_ms();
+		write!(f, "{}ms", elapsed_ms)
+	}
+}
+
+impl Stopwatch {
+	/// Creates a new stopwatch.
+	pub fn new() -> Stopwatch {
+		Stopwatch::default()
 	}
 
 	/// Creates a new stopwatch and starts it.
@@ -47,9 +65,7 @@ impl Stopwatch {
 
 	/// Resets the stopwatch.
 	pub fn reset(&mut self) {
-		self.elapsed = Duration::new(0, 0);
-		self.timer = Instant::now();
-		self.is_running = false;
+		*self = Stopwatch::new();
 	}
 
 	/// Resets and starts the stopwatch.
@@ -65,7 +81,10 @@ impl Stopwatch {
 
 	/// Returns the total elapsed time.
 	pub fn elapsed(&self) -> Duration {
-		self.elapsed + self.timer.elapsed()
+		match self.is_running {
+			true => self.elapsed + self.timer.elapsed(),
+			false => self.elapsed,
+		}
 	}
 
 	/// Returns the total elapsed time in milliseconds.
@@ -83,8 +102,13 @@ impl Stopwatch {
 		self.elapsed().as_nanos()
 	}
 
-	/// Returns the total elapsed time in seconds.
-	pub fn elapsed_s(&self) -> u64 {
+	/// Returns the total elapsed time in fractional seconds.
+	pub fn elapsed_s(&mut self) -> f64 {
+		self.elapsed().as_secs_f64()
+	}
+
+	/// Returns the total elapsed time in whole seconds.
+	pub fn elapsed_s_whole(&self) -> u64 {
 		self.elapsed().as_secs()
 	}
 }

@@ -688,14 +688,21 @@ impl Vault {
 	/// # Arguments
 	///
 	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-	pub fn deduplicate_items(&mut self, ignore_names: bool) -> &mut [(Entry, Vec<u8>)] {
+	pub fn deduplicate_items(&mut self, ignore_names: bool) -> Vec<(Entry, Vec<u8>)> {
 		self.items.sort_by_cached_key(|x| x.0.last_modified);
+		let mut items_clone = self.items.clone();
 		match ignore_names {
-			true => self.items.partition_dedup_by(|a, b| a.0.hash == b.0.hash).1,
+			true => {
+				let (dedup, duplicates) =
+					items_clone.partition_dedup_by(|a, b| a.0.hash == b.0.hash);
+				self.items = dedup.to_vec();
+				duplicates.to_vec()
+			}
 			false => {
-				self.items
-					.partition_dedup_by(|a, b| a.0.name == b.0.name && a.0.hash == b.0.hash)
-					.1
+				let (dedup, duplicates) = items_clone
+					.partition_dedup_by(|a, b| a.0.name == b.0.name && a.0.hash == b.0.hash);
+				self.items = dedup.to_vec();
+				duplicates.to_vec()
 			}
 		}
 	}

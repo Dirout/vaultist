@@ -47,6 +47,7 @@ use std::path::PathBuf;
 use tantivy::collector::TopDocs;
 use tantivy::directory::MmapDirectory;
 use tantivy::query::QueryParser;
+use tantivy::schema::STRING;
 use tantivy::schema::{Schema, STORED, TEXT};
 use tantivy::{doc, DocAddress, Index, Score};
 use uuid::Uuid;
@@ -248,7 +249,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 
 	let mut schema_builder = Schema::builder();
 	let _name = schema_builder.add_text_field("title", TEXT | STORED);
-	let _id = schema_builder.add_text_field("id", TEXT | STORED);
+	let _id = schema_builder.add_text_field("id", STRING | STORED);
 	let _last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
 	let schema = schema_builder.build();
 	let index = Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema).unwrap();
@@ -260,7 +261,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n⏰ Created new vault in {} seconds.",
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -357,7 +358,7 @@ fn add_item(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n⏰ Added new entry to vault in {} seconds.",
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -488,7 +489,7 @@ fn see_item(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n⏰ Decrypted vault entry in {} seconds.",
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -648,6 +649,10 @@ fn change_item(matches: &clap::ArgMatches) {
 		path_buf.join(filenamify(new_entry.id.clone().to_string() + ".vaultist")),
 		&deserialised_vault.encrypt_secret(&mut new_secret),
 	);
+	write_file(
+		path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&deserialised_vault).unwrap(),
+	);
 
 	let secret_id_term =
 		tantivy::schema::Term::from_field_text(id, &new_entry.id.clone().to_string());
@@ -668,7 +673,7 @@ fn change_item(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n⏰ Updated vault entry in {} seconds.",
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -779,6 +784,10 @@ fn remove_item(matches: &clap::ArgMatches) {
 		selected_item.clone().0.id.to_string() + ".vaultist",
 	)))
 	.unwrap();
+	write_file(
+		path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&deserialised_vault).unwrap(),
+	);
 
 	let secret_id_term =
 		tantivy::schema::Term::from_field_text(id, &selected_item.clone().0.id.to_string());
@@ -792,7 +801,7 @@ fn remove_item(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n⏰ Removed vault entry in {} seconds.",
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -849,6 +858,7 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
 	let duplicate_items = deserialised_vault.deduplicate_items(ignore_names);
+
 	for item in duplicate_items {
 		std::fs::remove_file(path_buf.join(filenamify(item.0.id.to_string() + ".vaultist")))
 			.unwrap();
@@ -859,12 +869,17 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 	index_writer.commit().unwrap();
 	reader.reload().unwrap();
 
+	write_file(
+		path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&deserialised_vault).unwrap(),
+	);
+
 	// Show how long it took to perform operation
 	timer.stop();
 	writeln!(
 		buf_out,
 		"\n⏰ Removed duplicate vault items in {} seconds.",
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -977,7 +992,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n⏰ Generated password(s) in {} seconds.",
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -1069,7 +1084,7 @@ fn analyse_password(matches: &clap::ArgMatches) {
 	writeln!(
 		buf_out,
 		"\n⏰ Analysed password in {} seconds.",
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -1160,7 +1175,7 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 		buf_out,
 		"\n⏰ Imported {} secret(s) from Bitwarden in {} seconds.",
 		bitwarden_secrets_len,
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }
@@ -1251,7 +1266,7 @@ fn import_firefox(matches: &clap::ArgMatches) {
 		buf_out,
 		"\n⏰ Imported {} secret(s) from Firefox in {} seconds.",
 		firefox_secrets_len,
-		(timer.elapsed_ms() as f32 / 1000.0)
+		timer.elapsed_s()
 	)
 	.unwrap();
 }

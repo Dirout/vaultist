@@ -84,6 +84,10 @@ yansi = "0.5.1"
 zeroize = { version = "1.5.7", features = ["alloc", "derive"] }
 zxcvbn = { version = "2.2.1", features = ["builder", "ser"] }
 
+[features]
+# derive_more = ["dep:derive_more"]
+derive_more = []
+
 [profile.release]
 codegen-units = 1
 opt-level = 3
