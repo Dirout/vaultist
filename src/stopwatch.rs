@@ -34,7 +34,7 @@ impl Default for Stopwatch {
 impl Display for Stopwatch {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let elapsed_ms = self.clone().elapsed_ms();
-		write!(f, "{}ms", elapsed_ms)
+		write!(f, "{elapsed_ms}ms")
 	}
 }
 
