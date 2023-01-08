@@ -21,8 +21,6 @@
 #![feature(drain_filter)]
 #![feature(slice_partition_dedup)]
 
-pub mod stopwatch;
-
 use argon2::password_hash::SaltString;
 use argon2::PasswordHasher;
 use blake2::digest::Update;

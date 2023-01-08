@@ -50,8 +50,8 @@ use tantivy::query::QueryParser;
 use tantivy::schema::STRING;
 use tantivy::schema::{Schema, STORED, TEXT};
 use tantivy::{doc, DocAddress, Index, Score};
+use ticky::Stopwatch;
 use uuid::Uuid;
-use vaultist::stopwatch::Stopwatch;
 use yansi::Paint;
 use zxcvbn::zxcvbn;
 
