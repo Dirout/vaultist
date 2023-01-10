@@ -37,7 +37,7 @@ include = [
 [lib]
 name = "vaultist"
 path = "src/lib.rs"
-crate-type=["rlib", "dylib", "staticlib"]
+crate-type=["rlib", "cdylib", "staticlib"]
 
 [[bin]]
 name = "vaultist"
@@ -75,6 +75,7 @@ rand_core = { version = "0.6.4", features = ["std", "serde1"] }
 rpassword = "7.2.0"
 serde = "1.0.152"
 serde_json = { version = "1.0.91", features = ["std"] }
+serde_yaml = "0.9.16"
 tantivy = { version = "0.19.0", features = ["mmap", "lz4-compression"] }
 ticky = { git = "https://github.com/Dirout/ticky.git" }
 url = { version = "2.3.1", features = ["serde"] }
@@ -85,16 +86,11 @@ yansi = "0.5.1"
 zeroize = { version = "1.5.7", features = ["alloc", "derive"] }
 zxcvbn = { version = "2.2.1", features = ["builder", "ser"] }
 
-[features]
-# derive_more = ["dep:derive_more"]
-derive_more = []
-
 [profile.release]
 codegen-units = 1
 opt-level = 3
 lto = true
 debug = 0
-panic = 'abort'
 
 [package.metadata.deb]
 section = "utility"

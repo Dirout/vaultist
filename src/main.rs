@@ -100,6 +100,12 @@ lazy_static! {
 	.subcommand(Command::new("import_firefox").about("Import items from a Firefox vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
 		.arg(arg!(FIREFOX_EXPORT_PATH: "Path to an exported Firefox vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("import_chrome").about("Import items from a Chrome vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(CHROME_EXPORT_PATH: "Path to an exported Chrome vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("export").about("Export all items from a vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(export_format: "Format to export items in").required(true).value_parser(value_parser!(String))))
 	.get_matches_from(wild::args());
 }
 
@@ -182,6 +188,12 @@ fn main() {
 		Some(("import_firefox", import_firefox_matches)) => {
 			import_firefox(import_firefox_matches);
 		}
+		Some(("import_chrome", import_chrome_matches)) => {
+			import_chrome(import_chrome_matches);
+		}
+		Some(("export", export_matches)) => {
+			export(export_matches);
+		}
 		None => writeln!(buf_out, "Vaultist {}", crate_version!()).unwrap(),
 		_ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
 	}
@@ -223,7 +235,10 @@ fn new_vault(matches: &clap::ArgMatches) {
 	assert!(password_feedback.0, "{}", password_feedback.1);
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
-	let new_vault = vaultist::create_vault_from_password(confirm_attempt_password); // Create the vault
+	let new_vault = vaultist::create_vault_from_password(
+		confirm_attempt_password,
+		vaultist::VaultVersion::latest(),
+	); // Create the vault
 	timer.stop(); // Stop the stopwatch
 
 	let verify_attempt_password = rpassword::prompt_password(
@@ -260,7 +275,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Created new vault in {} seconds.",
+		"\n⏰ Created new vault in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -357,7 +372,7 @@ fn add_item(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Added new entry to vault in {} seconds.",
+		"\n⏰ Added new entry to vault in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -488,7 +503,7 @@ fn see_item(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Decrypted vault entry in {} seconds.",
+		"\n⏰ Decrypted vault entry in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -672,7 +687,7 @@ fn change_item(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Updated vault entry in {} seconds.",
+		"\n⏰ Updated vault entry in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -800,7 +815,7 @@ fn remove_item(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Removed vault entry in {} seconds.",
+		"\n⏰ Removed vault entry in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -878,7 +893,7 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Removed duplicate vault items in {} seconds.",
+		"\n⏰ Removed duplicate vault items in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -991,7 +1006,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Generated password(s) in {} seconds.",
+		"\n⏰ Generated password(s) in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -1083,7 +1098,7 @@ fn analyse_password(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Analysed password in {} seconds.",
+		"\n⏰ Analysed password in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -1173,7 +1188,7 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Imported {} secret(s) from Bitwarden in {} seconds.",
+		"\n⏰ Imported {} secret(s) from Bitwarden in {:.3} seconds.",
 		bitwarden_secrets_len,
 		timer.elapsed_s()
 	)
@@ -1264,8 +1279,184 @@ fn import_firefox(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Imported {} secret(s) from Firefox in {} seconds.",
+		"\n⏰ Imported {} secret(s) from Firefox in {:.3} seconds.",
 		firefox_secrets_len,
+		timer.elapsed_s()
+	)
+	.unwrap();
+}
+
+/// Import items from a Chrome vault.
+///
+/// # Arguments
+///
+/// * `PATH` - Path to a Chrome vault in the filesystem (required).
+fn import_chrome(matches: &clap::ArgMatches) {
+	let stdout = std::io::stdout();
+	let stdout_lock = stdout.lock();
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let vault_path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let vault_path_buf = match std::fs::canonicalize(vault_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(vault_path_buf_input.to_str().unwrap())),
+	};
+
+	let chrome_path_buf_input = matches
+		.get_one::<PathBuf>("CHROME_EXPORT_PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let chrome_path_buf = match std::fs::canonicalize(chrome_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(chrome_path_buf_input.to_str().unwrap())),
+	};
+
+	let mut deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(vault_path_buf.join(".vaultist-vault"))).unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	assert!(
+		argon2::Argon2::default()
+			.verify_password(
+				verify_password.as_bytes(),
+				&PasswordHash::new(&deserialised_vault.key).unwrap()
+			)
+			.is_ok(),
+		"❌ Could not access vault with that password."
+	);
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let index = Index::open(MmapDirectory::open(vault_path_buf.clone()).unwrap()).unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
+	let mut index_writer = index.writer(100_000_000).unwrap();
+
+	let chrome_secrets = vaultist::get_secrets_from_chrome(chrome_path_buf); // Grab items from vault exported from Chrome
+	let chrome_secrets_len = chrome_secrets.len();
+	for mut chrome_secret in chrome_secrets {
+		let encrypted_secret = deserialised_vault.encrypt_secret(&mut chrome_secret);
+		write_file(
+			vault_path_buf.join(filenamify(
+				chrome_secret.entry.clone().id.to_string() + ".vaultist",
+			)),
+			&encrypted_secret,
+		);
+
+		write_file(
+			vault_path_buf.join(".vaultist-vault"),
+			&bincode::serialize(&deserialised_vault).unwrap(),
+		);
+
+		index_writer
+			.add_document(doc!(
+				name => chrome_secret.entry.clone().name,
+				id => chrome_secret.entry.clone().id.to_string(),
+				last_modified => chrome_secret.entry.clone().last_modified.to_rfc2822(),
+			))
+			.unwrap();
+	}
+	index_writer.commit().unwrap();
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"\n⏰ Imported {} secret(s) from Chrome in {:.3} seconds.",
+		chrome_secrets_len,
+		timer.elapsed_s()
+	)
+	.unwrap();
+}
+
+/// Export all items from a vault.
+///
+/// # Arguments
+///
+/// * `PATH` - Path to a vault in the filesystem (required).
+///
+/// * `export_format` - Format to export items in.
+fn export(matches: &clap::ArgMatches) {
+	let stdout = std::io::stdout();
+	let stdout_lock = stdout.lock();
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let export_format: &str = matches.get_one::<String>("export_format").unwrap();
+
+	let path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let path_buf = match std::fs::canonicalize(path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
+	};
+
+	let deserialised_vault: vaultist::Vault =
+		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	assert!(
+		argon2::Argon2::default()
+			.verify_password(
+				verify_password.as_bytes(),
+				&PasswordHash::new(&deserialised_vault.key).unwrap()
+			)
+			.is_ok(),
+		"❌ Could not access vault with that password."
+	);
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let mut decrypted_items: Vec<vaultist::Secret> = Vec::new();
+	for item in &deserialised_vault.items {
+		let entry_nonce_map: HashMap<vaultist::Entry, Vec<u8>> =
+			deserialised_vault.items.clone().into_iter().collect();
+		let item_nonce = entry_nonce_map.get(&item.0).unwrap();
+		let encrypted_secret =
+			read_file(path_buf.join(filenamify(item.0.id.to_string() + ".vaultist")));
+		decrypted_items.push(vaultist::decrypt_secret(
+			deserialised_vault.key.clone(),
+			encrypted_secret,
+			item_nonce.to_owned(),
+		));
+	}
+	let export_bytes = match export_format {
+		"json" => serde_json::to_vec_pretty(&decrypted_items).unwrap(),
+		"yaml" => serde_yaml::to_string(&decrypted_items)
+			.unwrap()
+			.as_bytes()
+			.to_vec(),
+		"bin" => {
+			let nonce = vaultist::generate_nonce();
+			let encrypted_bytes = vaultist::encrypt_bytes(
+				&deserialised_vault.key,
+				&bincode::serialize(&decrypted_items).unwrap(),
+				&nonce,
+			);
+			bincode::serialize(&(encrypted_bytes, nonce)).unwrap()
+		}
+		_ => panic!("❌ Invalid export format."),
+	};
+	write_file(
+		path_buf.join("vault_export.".to_owned() + export_format),
+		&export_bytes,
+	);
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"\n⏰ Exported vault items in {:.3} seconds.",
 		timer.elapsed_s()
 	)
 	.unwrap();

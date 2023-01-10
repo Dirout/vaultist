@@ -66,6 +66,37 @@ pub enum CorrectHorseBatteryStapleElements {
 	DIGIT,
 }
 
+#[derive(Eq, PartialEq, PartialOrd, Clone, Debug, Serialize, Deserialize, From, Hash)]
+/// The possible versions of a Vaultist vault
+pub enum VaultVersion {
+	/// The Vaultist vault format introduced in December 2022
+	December2022,
+}
+
+impl Default for VaultVersion {
+	fn default() -> Self {
+		VaultVersion::latest()
+	}
+}
+
+impl VaultVersion {
+	/// Get the latest version of the Vaultist vault format
+	pub fn latest() -> Self {
+		VaultVersion::December2022
+	}
+
+	/// Gets the Argon2 configuration for the vault version
+	pub fn get_argon2_config(&self) -> argon2::Argon2 {
+		match self {
+			VaultVersion::December2022 => argon2::Argon2::new(
+				argon2::Algorithm::default(),
+				argon2::Version::default(),
+				argon2::Params::new(1048576u32, 4u32, 4u32, None).unwrap(),
+			),
+		}
+	}
+}
+
 #[derive(
 	Eq,
 	PartialEq,
@@ -89,6 +120,9 @@ pub struct Vault {
 	#[zeroize(skip)]
 	/// The entries representing the secrets (and the nonces used to encrypt them) within the vault
 	pub items: Vec<(Entry, Vec<u8>)>,
+	#[zeroize(skip)]
+	/// The version of the vault
+	pub version: VaultVersion,
 }
 
 #[derive(
@@ -587,6 +621,32 @@ pub struct FirefoxRecord {
 	pub time_password_changed: u64,
 }
 
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A record in a Chrome vault
+pub struct ChromeRecord {
+	/// The name of the record
+	pub name: Option<String>,
+	/// The URL of the record
+	pub url: String,
+	/// The username of the record
+	pub username: Option<String>,
+	/// The password of the record
+	pub password: String,
+}
+
 /// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
 pub fn generate_nonce() -> XNonce {
 	XChaCha20Poly1305::generate_nonce(&mut rand_core::OsRng)
@@ -597,13 +657,14 @@ pub fn generate_nonce() -> XNonce {
 /// # Arguments
 ///
 /// * `password` - The user-supplied password.
-pub fn create_vault_from_password(password: String) -> Vault {
+pub fn create_vault_from_password(password: String, version: VaultVersion) -> Vault {
 	let salt = argon2::password_hash::SaltString::generate(&mut rand_core::OsRng);
-	let key_and_salt = generate_key_from_password_and_salt(password, &salt);
+	let key_and_salt = generate_key_from_password_and_salt(password, &salt, version.clone());
 	return Vault {
 		salt: salt.as_bytes().to_owned(),
 		key: key_and_salt.0,
 		items: Vec::new(),
+		version,
 	};
 }
 
@@ -617,12 +678,9 @@ pub fn create_vault_from_password(password: String) -> Vault {
 pub fn generate_key_from_password_and_salt(
 	password: String,
 	salt: &SaltString,
+	version: VaultVersion,
 ) -> (String, &SaltString) {
-	let config = argon2::Argon2::new(
-		argon2::Algorithm::default(),
-		argon2::Version::default(),
-		argon2::Params::new(1048576u32, 4u32, 4u32, None).unwrap(),
-	);
+	let config = version.get_argon2_config();
 	let key = config
 		.hash_password(password.as_bytes(), &salt)
 		.unwrap()
@@ -1145,6 +1203,64 @@ pub fn get_secrets_from_firefox(path: PathBuf) -> Vec<Secret> {
 				.unwrap(),
 				Utc,
 			),
+		};
+
+		let new_secret = Secret {
+			entry: new_entry,
+			contents: contents.as_bytes().to_vec(),
+			nonce: generate_nonce().to_vec(),
+		};
+
+		secrets.push(new_secret);
+	}
+	secrets
+}
+
+/// Gets a list of secrets from an exported Chrome vault.
+///
+/// # Arguments
+///
+/// * `path` - The path to the exported Chrome vault.
+pub fn get_secrets_from_chrome(path: PathBuf) -> Vec<Secret> {
+	let file = std::fs::File::open(path).unwrap();
+	let reader = std::io::BufReader::new(file);
+
+	let mut secrets: Vec<Secret> = Vec::new();
+
+	let mut csv_reader = csv::Reader::from_reader(reader);
+	for result in csv_reader.deserialize() {
+		let record: ChromeRecord = result.unwrap();
+
+		let contents = format!(
+			"URL: {}\nUsername: {}\nPassword: {}",
+			record.url,
+			record.username.clone().unwrap_or(String::from("None")),
+			record.password
+		);
+
+		let mut hasher = Blake2bVar::new(64).unwrap();
+		hasher.update(contents.as_bytes());
+		let mut content_hash = [0u8; 64];
+		hasher.finalize_variable(&mut content_hash).unwrap();
+
+		let record_name = if let Some(name) = &record.name {
+			name.to_owned()
+		} else {
+			format!(
+				"{} ({})",
+				Url::parse(&record.url).unwrap().host_str().unwrap(),
+				record
+					.username
+					.clone()
+					.unwrap_or(String::from("no username"))
+			)
+		};
+
+		let new_entry = Entry {
+			name: record_name,
+			id: Uuid::now_v7(),
+			hash: content_hash.to_vec(),
+			last_modified: chrono::offset::Utc::now(),
 		};
 
 		let new_secret = Secret {
