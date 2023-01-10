@@ -60,7 +60,7 @@ dialoguer = { version = "0.10.2", features = ["editor", "password", "fuzzy-selec
 edit = "0.1.4"
 filenamify = "0.1.0"
 generic-array = { version = "0.14.6", features = ["serde"] }
-git2 = "0.15.0"
+git2 = "0.16.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 memorable-wordlist = "0.1.7"
