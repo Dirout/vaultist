@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-04897efae0a76fcd.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-4743e13df3dfe8c4.css"><link rel="stylesheet" disabled href="../../static.files/dark-0e1b889528bd466b.css"><link rel="stylesheet" disabled href="../../static.files/ayu-65289d5d067c7c66.css"><script id="default-settings" ></script><script src="../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-bc1b32400f872ddb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="icon" href="https://github.com/Dirout/vaultist/raw/master/branding/app_icon.png"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../vaultist/index.html">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-1f7d512b176f0f72.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-124a1ca42af929b6.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c722f88035d2892e.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-4743e13df3dfe8c4.css"><link rel="stylesheet" disabled href="../../static.files/dark-0e1b889528bd466b.css"><link rel="stylesheet" disabled href="../../static.files/ayu-65289d5d067c7c66.css"><script id="default-settings" ></script><script src="../../static.files/storage-d43fa987303ecbbb.js"></script><script defer src="../../static.files/source-script-ea63cb6500f71309.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-bc1b32400f872ddb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="icon" href="https://github.com/Dirout/vaultist/raw/master/branding/app_icon.png"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../vaultist/index.html">
                         <img src="https://github.com/Dirout/vaultist/raw/master/branding/app_icon.png" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-5ec35bf9ca753509.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -1274,6 +1274,131 @@
 <a href="#1273" id="1273">1273</a>
 <a href="#1274" id="1274">1274</a>
 <a href="#1275" id="1275">1275</a>
+<a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+<a href="#1283" id="1283">1283</a>
+<a href="#1284" id="1284">1284</a>
+<a href="#1285" id="1285">1285</a>
+<a href="#1286" id="1286">1286</a>
+<a href="#1287" id="1287">1287</a>
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
+<a href="#1316" id="1316">1316</a>
+<a href="#1317" id="1317">1317</a>
+<a href="#1318" id="1318">1318</a>
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a>
+<a href="#1359" id="1359">1359</a>
+<a href="#1360" id="1360">1360</a>
+<a href="#1361" id="1361">1361</a>
+<a href="#1362" id="1362">1362</a>
+<a href="#1363" id="1363">1363</a>
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a>
+<a href="#1366" id="1366">1366</a>
+<a href="#1367" id="1367">1367</a>
+<a href="#1368" id="1368">1368</a>
+<a href="#1369" id="1369">1369</a>
+<a href="#1370" id="1370">1370</a>
+<a href="#1371" id="1371">1371</a>
+<a href="#1372" id="1372">1372</a>
+<a href="#1373" id="1373">1373</a>
+<a href="#1374" id="1374">1374</a>
+<a href="#1375" id="1375">1375</a>
+<a href="#1376" id="1376">1376</a>
+<a href="#1377" id="1377">1377</a>
+<a href="#1378" id="1378">1378</a>
+<a href="#1379" id="1379">1379</a>
+<a href="#1380" id="1380">1380</a>
+<a href="#1381" id="1381">1381</a>
+<a href="#1382" id="1382">1382</a>
+<a href="#1383" id="1383">1383</a>
+<a href="#1384" id="1384">1384</a>
+<a href="#1385" id="1385">1385</a>
+<a href="#1386" id="1386">1386</a>
+<a href="#1387" id="1387">1387</a>
+<a href="#1388" id="1388">1388</a>
+<a href="#1389" id="1389">1389</a>
+<a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
 </pre><pre class="rust"><code><span class="comment">/*
 	This file is part of Vaultist.
 	Vaultist is free software: you can redistribute it and/or modify
@@ -1303,7 +1428,7 @@
 <span class="kw">use </span>blake2::digest::VariableOutput;
 <span class="kw">use </span>blake2::Blake2bVar;
 <span class="kw">use </span>chacha20poly1305::aead::{Aead, AeadCore};
-<span class="kw">use </span>chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
+<span class="kw">use </span>chacha20poly1305::{KeyInit, XChaCha20Poly1305, XNonce};
 <span class="kw">use </span>chrono::NaiveDateTime;
 <span class="kw">use </span>chrono::Utc;
 <span class="kw">use </span>convert_case::{Case, Casing};
@@ -1317,6 +1442,7 @@
 <span class="kw">use </span>std::fmt::Display;
 <span class="kw">use </span>std::fmt::Formatter;
 <span class="kw">use </span>std::path::PathBuf;
+<span class="kw">use </span>std::str;
 <span class="kw">use </span>url::Url;
 <span class="kw">use </span>uuid::Uuid;
 <span class="kw">use </span>yansi::Paint;
@@ -1342,6 +1468,240 @@
 	</span>DIGIT,
 }
 
+<span class="doccomment">/// Generate a `CorrectHorseBatteryStaple`-style password.\
+/// Optionally, can use two additional elements:
+/// 1. A randomly-picked special character to separate each element (note: the separator will always be a space if `spaces` is true)
+/// 2. A randomly-picked one- or two-digit number (note: if numbers are allowed, the password will always end with one)
+///
+/// # Arguments
+///
+/// * `count` - The number of passwords to generate.
+///
+/// * `length` - The length of the generated passwords.
+///
+/// * `numbers` - Passwords are should contain at least one number.
+///
+/// * `lowercase_letters` - Passwords should contain at least one lowercase letter.
+///
+/// * `uppercase_letters` - Passwords should contain at least one uppercase letter.
+///
+/// * `symbols` - Passwords should contain at least one special character.
+///
+/// * `spaces` - Passwords should use a space to separate each password element.
+///
+/// * `exclude_similar_characters` - Whether or not to exclude similar looking ASCII characters (``iI1loO0&quot;&#39;`|``).
+</span><span class="kw">pub fn </span>correct_horse_battery_staple(
+	count: usize,
+	length: usize,
+	numbers: bool,
+	lowercase_letters: bool,
+	uppercase_letters: bool,
+	symbols: bool,
+	spaces: bool,
+	exclude_similar_characters: bool,
+) -&gt; Vec&lt;String&gt; {
+	<span class="kw">let </span><span class="kw-2">mut </span>result: Vec&lt;String&gt; = Vec::new();
+	<span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+	<span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..count {
+		<span class="kw">let </span><span class="kw-2">mut </span>current_password: Vec&lt;String&gt; = Vec::new();
+		<span class="kw">let </span>separator = <span class="kw">if </span>!spaces {
+			SYMBOLS.choose(<span class="kw-2">&amp;mut </span>rng).unwrap().to_string()
+		} <span class="kw">else </span>{
+			<span class="string">&quot; &quot;</span>.to_owned()
+		};
+		<span class="kw">let </span><span class="kw-2">mut </span>characters_remaining = length;
+		<span class="kw">let </span><span class="kw-2">mut </span>next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::WORD;
+		<span class="kw">while </span>characters_remaining &gt; <span class="number">0 </span>{
+			<span class="kw">match </span>next_element {
+				CorrectHorseBatteryStapleElements::WORD =&gt; {
+					<span class="comment">// Leave three characters for at least a separator and two digits
+					</span><span class="kw">match </span>characters_remaining &gt;= <span class="number">3 </span>{
+						<span class="bool-val">true </span>=&gt; {
+							<span class="kw">let </span><span class="kw-2">mut </span>randomly_selected_word = String::new();
+							<span class="kw">loop </span>{
+								<span class="kw">if </span>!randomly_selected_word.is_empty()
+									&amp;&amp; randomly_selected_word.len() &lt;= characters_remaining - <span class="number">3
+								</span>{
+									<span class="kw">match </span>uppercase_letters &amp;&amp; lowercase_letters {
+										<span class="comment">// Use both uppercase and lowercase letters
+										</span><span class="bool-val">true </span>=&gt; {
+											current_password
+												.push(randomly_selected_word.to_case(Case::Title));
+										}
+										<span class="bool-val">false </span>=&gt; {
+											<span class="kw">match </span>uppercase_letters {
+												<span class="comment">// Use only uppercase letters
+												</span><span class="bool-val">true </span>=&gt; {
+													current_password.push(
+														randomly_selected_word.to_case(Case::Upper),
+													);
+												}
+												<span class="comment">// Use only lowercase letters
+												</span><span class="bool-val">false </span>=&gt; {
+													current_password.push(
+														randomly_selected_word.to_case(Case::Lower),
+													);
+												}
+											}
+										}
+									}
+									characters_remaining -= randomly_selected_word.len();
+									<span class="kw">break</span>;
+								} <span class="kw">else if </span>randomly_selected_word.is_empty()
+									|| randomly_selected_word.len() &gt;= characters_remaining - <span class="number">3
+								</span>{
+									randomly_selected_word = <span class="kw">if </span>!exclude_similar_characters {
+										memorable_wordlist::WORDS
+											.choose(<span class="kw-2">&amp;mut </span>rng)
+											.unwrap()
+											.to_string()
+									} <span class="kw">else </span>{
+										<span class="kw">let </span><span class="kw-2">mut </span>filtered_words =
+											memorable_wordlist::WORDS.to_owned();
+										filtered_words.retain(|<span class="kw-2">&amp;</span>x| {
+											x.contains(|c| SIMILAR_CHARACTERS.contains(<span class="kw-2">&amp;</span>c))
+										});
+										filtered_words.choose(<span class="kw-2">&amp;mut </span>rng).unwrap().to_string()
+									};
+								};
+							}
+						}
+						<span class="bool-val">false </span>=&gt; {}
+					}
+					next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::SEPARATOR;
+				}
+				CorrectHorseBatteryStapleElements::SEPARATOR =&gt; {
+					<span class="kw">match </span>(symbols || spaces) &amp;&amp; characters_remaining &gt; <span class="number">2 </span>{
+						<span class="bool-val">true </span>=&gt; {
+							current_password.push(separator.clone());
+							characters_remaining -= <span class="number">1</span>;
+						}
+						<span class="bool-val">false </span>=&gt; {}
+					}
+					<span class="kw">match </span>characters_remaining &gt; <span class="number">0 </span>&amp;&amp; characters_remaining &lt; <span class="number">3 </span>{
+						<span class="bool-val">true </span>=&gt; {
+							next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::DIGIT;
+						}
+						<span class="bool-val">false </span>=&gt; {
+							next_element = ELEMENTS.choose(<span class="kw-2">&amp;mut </span>rng).unwrap();
+						}
+					}
+				}
+				CorrectHorseBatteryStapleElements::DIGIT =&gt; <span class="kw">match </span>numbers {
+					<span class="bool-val">true </span>=&gt; {
+						<span class="kw">let </span>lower_bound = <span class="kw">if </span>exclude_similar_characters { <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
+						<span class="kw">let </span>random_number_string;
+						<span class="kw">match </span>characters_remaining {
+							<span class="number">1 </span>=&gt; {
+								<span class="kw">let </span>random_number = rng.gen_range(lower_bound..<span class="number">10</span>);
+								random_number_string = random_number.to_string();
+							}
+							<span class="number">2 </span>=&gt; {
+								<span class="kw">let </span>random_first_digit = rng.gen_range(lower_bound..<span class="number">10</span>);
+								<span class="kw">let </span>random_second_digit = rng.gen_range(lower_bound..<span class="number">10</span>);
+								random_number_string = random_first_digit.to_string()
+									+ <span class="kw-2">&amp;</span>random_second_digit.to_string();
+							}
+							n <span class="kw">if </span>n &gt; <span class="number">2 </span>=&gt; {
+								<span class="kw">if </span>rng.gen_bool(<span class="number">0.5</span>) {
+									<span class="kw">let </span>random_number = rng.gen_range(lower_bound..<span class="number">10</span>);
+									random_number_string = random_number.to_string();
+								} <span class="kw">else </span>{
+									<span class="kw">let </span>random_first_digit = rng.gen_range(lower_bound..<span class="number">10</span>);
+									<span class="kw">let </span>random_second_digit = rng.gen_range(lower_bound..<span class="number">10</span>);
+									random_number_string = random_first_digit.to_string()
+										+ <span class="kw-2">&amp;</span>random_second_digit.to_string();
+								}
+							}
+							<span class="kw">_ </span>=&gt; {
+								<span class="macro">unreachable!</span>();
+							}
+						}
+
+						current_password.push(random_number_string.clone());
+						characters_remaining -= random_number_string.len();
+						next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::SEPARATOR;
+					}
+					<span class="bool-val">false </span>=&gt; {
+						next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::WORD;
+					}
+				},
+			}
+		}
+		result.push(current_password.concat());
+	}
+
+	result
+}
+
+<span class="doccomment">/// Analyses whether or not a password is sufficiently resistant against an attack.
+///
+/// Returns a tuple with a boolean and a string. The boolean is true if the password is sufficiently resistant against an attack, false otherwise.
+///
+/// The string is a message that explains whether the password is or is not sufficiently resistant against an attack, and, if not, some suggestions to give.
+///
+/// # Arguments
+///
+/// * `password` - The password to be analysed.
+</span><span class="kw">pub fn </span>get_password_feedback(password: String) -&gt; (bool, String) {
+	<span class="kw">let </span>is_ok: bool;
+
+	<span class="kw">let </span>analysed_password = analyzer::analyze(<span class="kw-2">&amp;</span>password);
+	<span class="kw">let </span>score = scorer::score(<span class="kw-2">&amp;</span>analysed_password);
+
+	<span class="kw">let </span>strength_estimate = zxcvbn(<span class="kw-2">&amp;</span>password, <span class="kw-2">&amp;</span>[]).unwrap();
+	<span class="kw">let </span>warning_string = <span class="kw">if </span>strength_estimate.feedback().is_some() {
+		<span class="kw">match </span>strength_estimate.feedback().as_ref().unwrap().warning() {
+			<span class="prelude-val">Some</span>(w) =&gt; <span class="macro">format!</span>(<span class="string">&quot;\nWarning: {}&quot;</span>, Paint::red(w.to_string()).bold()),
+			<span class="prelude-val">None </span>=&gt; <span class="string">&quot;&quot;</span>.to_owned(),
+		}
+	} <span class="kw">else </span>{
+		<span class="string">&quot;&quot;</span>.to_owned()
+	};
+	<span class="kw">let </span>suggestions_string = <span class="kw">if </span>strength_estimate.feedback().is_some() {
+		<span class="kw">let </span>suggestions = strength_estimate.feedback().as_ref().unwrap().suggestions();
+		<span class="kw">match </span>suggestions.is_empty() {
+			<span class="bool-val">false </span>=&gt; <span class="macro">format!</span>(
+				<span class="string">&quot;\n{}:\n{}&quot;</span>,
+				Paint::yellow(<span class="string">&quot;Suggestions&quot;</span>).bold(),
+				suggestions
+					.iter()
+					.map(|s| <span class="string">&quot; - &quot;</span>.to_owned() + <span class="kw-2">&amp;</span>s.to_string())
+					.collect_vec()
+					.join(<span class="string">&quot;\n&quot;</span>)
+			),
+			<span class="bool-val">true </span>=&gt; <span class="string">&quot;&quot;</span>.to_owned(),
+		}
+	} <span class="kw">else </span>{
+		<span class="string">&quot;&quot;</span>.to_owned()
+	};
+	<span class="kw">let </span>feedback = <span class="kw">if </span>strength_estimate.score() &lt; <span class="number">3 </span>|| score &lt; <span class="number">80.0 </span>{
+		is_ok = <span class="bool-val">false</span>;
+		<span class="macro">format!</span>(
+			<span class="string">&quot;\n{}{}{}&quot;</span>,
+			Paint::red(<span class="string">&quot;❌ This password is insecure and should not be used.&quot;</span>).bold(),
+			warning_string,
+			suggestions_string
+		)
+	} <span class="kw">else if </span>strength_estimate.score() &gt;= <span class="number">3 </span>&amp;&amp; score &gt;= <span class="number">80.0 </span>{
+		is_ok = <span class="bool-val">true</span>;
+		<span class="macro">format!</span>(
+			<span class="string">&quot;\n{}&quot;</span>,
+			Paint::green(<span class="string">&quot;✔️ This password is sufficiently safe to use.&quot;</span>).bold()
+		)
+	} <span class="kw">else </span>{
+		is_ok = <span class="bool-val">false</span>;
+		<span class="macro">format!</span>(
+			<span class="string">&quot;\n{}{}{}&quot;</span>,
+			Paint::yellow(<span class="string">&quot;⚠️ This password may not be secure.&quot;</span>).bold(),
+			warning_string,
+			suggestions_string
+		)
+	};
+
+	(is_ok, feedback)
+}
+
 <span class="attr">#[derive(Eq, PartialEq, PartialOrd, Clone, Debug, Serialize, Deserialize, From, Hash)]
 </span><span class="doccomment">/// The possible versions of a Vaultist vault
 </span><span class="kw">pub enum </span>VaultVersion {
@@ -1362,11 +1722,11 @@
 	}
 
 	<span class="doccomment">/// Gets the Argon2 configuration for the vault version
-	</span><span class="kw">pub fn </span>get_argon2_config(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; argon2::Argon2 {
+	</span><span class="kw">pub fn </span>get_argon2_config(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (argon2::Algorithm, argon2::Version, argon2::Params) {
 		<span class="kw">match </span><span class="self">self </span>{
-			VaultVersion::December2022 =&gt; argon2::Argon2::new(
-				argon2::Algorithm::default(),
-				argon2::Version::default(),
+			VaultVersion::December2022 =&gt; (
+				argon2::Algorithm::Argon2id,
+				argon2::Version::V0x13,
 				argon2::Params::new(<span class="number">1048576u32</span>, <span class="number">4u32</span>, <span class="number">4u32</span>, <span class="prelude-val">None</span>).unwrap(),
 			),
 		}
@@ -1378,12 +1738,10 @@
 	PartialEq,
 	PartialOrd,
 	Clone,
-	Default,
 	Debug,
 	Serialize,
 	Deserialize,
 	From,
-	Constructor,
 	zeroize::Zeroize,
 	zeroize::ZeroizeOnDrop,
 )]
@@ -1391,14 +1749,208 @@
 </span><span class="kw">pub struct </span>Vault {
 	<span class="doccomment">/// The salt applied to the vault&#39;s password
 	</span><span class="kw">pub </span>salt: Vec&lt;u8&gt;,
-	<span class="doccomment">/// The key of the vault
-	</span><span class="kw">pub </span>key: String,
-	<span class="attr">#[zeroize(skip)]
-	</span><span class="doccomment">/// The entries representing the secrets (and the nonces used to encrypt them) within the vault
-	</span><span class="kw">pub </span>items: Vec&lt;(Entry, Vec&lt;u8&gt;)&gt;,
+	<span class="doccomment">/// The nonce used to encrypt the vault
+	</span><span class="kw">pub </span>nonce: XNonce,
+	<span class="doccomment">/// The encrypted secrets in the vault
+	</span><span class="kw">pub </span>encrypted_secrets: Vec&lt;u8&gt;,
 	<span class="attr">#[zeroize(skip)]
 	</span><span class="doccomment">/// The version of the vault
 	</span><span class="kw">pub </span>version: VaultVersion,
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>Vault {
+	<span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+		Vault {
+			salt: generate_salt(),
+			nonce: generate_nonce(),
+			encrypted_secrets: <span class="macro">vec!</span>[],
+			version: VaultVersion::default(),
+		}
+	}
+}
+
+<span class="kw">impl </span>Vault {
+	<span class="doccomment">/// Create a new vault with a user-supplied password.
+	///
+	/// # Arguments
+	///
+	/// * `password` - The password to use to encrypt the vault.
+	</span><span class="kw">pub fn </span>new(password: String) -&gt; Vault {
+		<span class="kw">let </span><span class="kw-2">mut </span>this = Vault::default();
+		<span class="kw">let </span>secrets: Vec&lt;Secret&gt; = Vec::new();
+		this.encrypted_secrets = encrypt_bytes(
+			<span class="kw-2">&amp;</span>this.generate_key_from_password(password).<span class="number">1</span>,
+			<span class="kw-2">&amp;</span>bincode::serialize(<span class="kw-2">&amp;</span>secrets).unwrap(),
+			<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>this.nonce),
+		);
+		this
+	}
+
+	<span class="doccomment">/// Decrypt a vector of secrets with a user-supplied password.
+	///
+	/// # Arguments
+	///
+	/// * `password` - The user-supplied password.
+	</span><span class="kw">pub fn </span>decrypt_vault_entries_by_password(<span class="kw-2">&amp;mut </span><span class="self">self</span>, password: String) -&gt; Vec&lt;Secret&gt; {
+		<span class="kw">let </span>key = <span class="self">self</span>.generate_key_from_password(password);
+		<span class="self">self</span>.decrypt_vault_entries_by_key(<span class="kw-2">&amp;</span>key.<span class="number">1</span>)
+	}
+
+	<span class="doccomment">/// Decrypt a vector of secrets with a generated key.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The key to decrypt the vault with.
+	</span><span class="kw">pub fn </span>decrypt_vault_entries_by_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8]) -&gt; Vec&lt;Secret&gt; {
+		bincode::deserialize(<span class="kw-2">&amp;</span>decrypt_bytes(key, <span class="kw-2">&amp;</span><span class="self">self</span>.encrypted_secrets, <span class="kw-2">&amp;</span><span class="self">self</span>.nonce)).unwrap()
+	}
+
+	<span class="doccomment">/// Generate a vault&#39;s key from a user-supplied password and a pre-generated salt.
+	///
+	/// # Arguments
+	///
+	/// * `password` - The user-supplied password.
+	</span><span class="kw">pub fn </span>generate_key_from_password(<span class="kw-2">&amp;mut </span><span class="self">self</span>, password: String) -&gt; (String, Vec&lt;u8&gt;) {
+		<span class="kw">let </span>salt_string = <span class="kw-2">&amp;</span>SaltString::new(str::from_utf8(<span class="kw-2">&amp;</span><span class="self">self</span>.salt).unwrap()).unwrap();
+		<span class="kw">let </span>config = <span class="self">self</span>.version.get_argon2_config();
+		<span class="kw">let </span>argon2 = argon2::Argon2::new(config.<span class="number">0</span>, config.<span class="number">1</span>, config.<span class="number">2</span>);
+		<span class="kw">let </span>key = argon2
+			.hash_password(password.as_bytes(), salt_string)
+			.unwrap();
+		<span class="comment">// println!(&quot;GEN_KEY_STR: {}&quot;, key);
+		// println!(&quot;GEN_KEY_BYTES: {}&quot;, key.hash.unwrap());
+		</span>(key.to_string(), key.hash.unwrap().as_bytes().to_vec())
+	}
+
+	<span class="doccomment">/// Sorts entries by their last modified date &amp; time, and then deduplicates items which have contents (and, optionally, names) in common.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The key to decrypt the vault with.
+	///
+	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
+	</span><span class="kw">pub fn </span>deduplicate_items(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8], ignore_names: bool) -&gt; Vec&lt;Secret&gt; {
+		<span class="kw">let </span><span class="kw-2">mut </span>items = <span class="self">self</span>.decrypt_vault_entries_by_key(key.clone());
+		items.sort_by_cached_key(|x| x.entry.last_modified);
+		<span class="kw">let </span><span class="kw-2">mut </span>items_clone = items.clone();
+		<span class="kw">match </span>ignore_names {
+			<span class="bool-val">true </span>=&gt; {
+				<span class="kw">let </span>(dedup, duplicates) =
+					items_clone.partition_dedup_by(|a, b| a.entry.hash == b.entry.hash);
+				<span class="self">self</span>.encrypt_secrets(key, dedup.to_vec());
+				duplicates.to_vec()
+			}
+			<span class="bool-val">false </span>=&gt; {
+				<span class="kw">let </span>(dedup, duplicates) = items_clone.partition_dedup_by(|a, b| {
+					a.entry.name == b.entry.name &amp;&amp; a.entry.hash == b.entry.hash
+				});
+				<span class="self">self</span>.encrypt_secrets(key, dedup.to_vec());
+				duplicates.to_vec()
+			}
+		}
+	}
+
+	<span class="doccomment">/// Remove an item from a vault.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The key to decrypt the vault with.
+	///
+	/// * `entry` - The entry to be removed.
+	</span><span class="kw">pub fn </span>remove_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8], entry: <span class="kw-2">&amp;</span>Entry) {
+		<span class="kw">let </span><span class="kw-2">mut </span>items = <span class="self">self</span>.decrypt_vault_entries_by_key(key.clone());
+		items.retain(|x| x.entry.id != entry.id);
+		<span class="self">self</span>.encrypted_secrets =
+			encrypt_bytes(key, <span class="kw-2">&amp;</span>bincode::serialize(<span class="kw-2">&amp;</span>items).unwrap(), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.nonce));
+	}
+
+	<span class="doccomment">/// Encrypt a vector of secrets into the vault.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The vault&#39;s key.
+	///
+	/// * `items` - The items to encrypt.
+	</span><span class="kw">pub fn </span>encrypt_secrets(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8], items: Vec&lt;Secret&gt;) {
+		<span class="self">self</span>.encrypted_secrets =
+			encrypt_bytes(key, <span class="kw-2">&amp;</span>bincode::serialize(<span class="kw-2">&amp;</span>items).unwrap(), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.nonce));
+	}
+
+	<span class="doccomment">/// Encrypt an entry into the vault.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The vault&#39;s key.
+	///
+	/// * `item` - The secret to encrypt.
+	</span><span class="kw">pub fn </span>encrypt_secret(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>[u8], item: <span class="kw-2">&amp;mut </span>Secret) {
+		<span class="kw">let </span><span class="kw-2">mut </span>items = <span class="self">self</span>.decrypt_vault_entries_by_key(key.clone());
+		items.push(item.clone());
+		<span class="self">self</span>.encrypt_secrets(key, items);
+	}
+}
+
+<span class="doccomment">/// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
+</span><span class="kw">pub fn </span>generate_nonce() -&gt; XNonce {
+	XChaCha20Poly1305::generate_nonce(<span class="kw-2">&amp;mut </span>rand_core::OsRng)
+}
+
+<span class="doccomment">/// Generates a random salt for use with the Argon2 algorithm.
+</span><span class="kw">pub fn </span>generate_salt() -&gt; Vec&lt;u8&gt; {
+	<span class="kw">let </span>salt = argon2::password_hash::SaltString::generate(<span class="kw-2">&amp;mut </span>rand_core::OsRng);
+	salt.as_str().as_bytes().to_vec()
+}
+
+<span class="doccomment">/// Encrypt a byte array using a vault&#39;s key.
+///
+/// # Arguments
+///
+/// * `key` - A vault&#39;s key.
+///
+/// * `bytes` - The bytes to encrypt.
+///
+/// * `nonce_bytes` - The bytes of the nonce to use.
+</span><span class="kw">pub fn </span>encrypt_bytes(key: <span class="kw-2">&amp;</span>[u8], bytes: <span class="kw-2">&amp;</span>[u8], nonce_bytes: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[u8]&gt;) -&gt; Vec&lt;u8&gt; {
+	<span class="comment">// println!(&quot;ENC_KEY_UTF8: {}&quot;, String::from_utf8_lossy(key));
+	// println!(&quot;ENC_KEY_32: {}&quot;, String::from_utf8_lossy(&amp;key[..32]));
+	</span><span class="kw">let </span>aead = XChaCha20Poly1305::new_from_slice(<span class="kw-2">&amp;</span>key[..<span class="number">32</span>]).unwrap();
+	<span class="kw">let </span>nonce = <span class="kw">match </span>nonce_bytes {
+		<span class="prelude-val">Some</span>(bytes) =&gt; XNonce::from_slice(bytes).to_owned(),
+		<span class="prelude-val">None </span>=&gt; generate_nonce(),
+	};
+	aead.encrypt(<span class="kw-2">&amp;</span>nonce, bytes).unwrap()
+}
+
+<span class="doccomment">/// Decrypt a byte array using the vault&#39;s key.
+///
+/// # Arguments
+///
+/// * `key` - The vault&#39;s key.
+///
+/// * `bytes` - The bytes to decrypt.
+///
+/// * `nonce` - The nonce to use.
+</span><span class="kw">pub fn </span>decrypt_bytes(key: <span class="kw-2">&amp;</span>[u8], bytes: <span class="kw-2">&amp;</span>[u8], nonce: <span class="kw-2">&amp;</span>XNonce) -&gt; Vec&lt;u8&gt; {
+	<span class="kw">let </span>aead = XChaCha20Poly1305::new_from_slice(<span class="kw-2">&amp;</span>key).unwrap();
+
+	aead.decrypt(nonce, bytes).unwrap()
+}
+
+<span class="doccomment">/// Decrypt a secret from the vault.
+///
+/// # Arguments
+///
+/// * `key` - The vault&#39;s key.
+///
+/// * `encrypted_serialised` - The bytes of the encrypted secret.
+///
+/// * `nonce_bytes` - The bytes of the nonce used to encrypt the secret.
+</span><span class="kw">pub fn </span>decrypt_secret(key: <span class="kw-2">&amp;</span>[u8], encrypted_serialised: Vec&lt;u8&gt;, nonce_bytes: Vec&lt;u8&gt;) -&gt; Secret {
+	<span class="comment">// let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
+	</span><span class="kw">let </span>nonce = XNonce::from_slice(<span class="kw-2">&amp;</span>nonce_bytes);
+	<span class="kw">let </span>decrypted_serialised = decrypt_bytes(key, <span class="kw-2">&amp;</span>encrypted_serialised, nonce);
+	<span class="kw">let </span>decrypted: Secret = bincode::deserialize(<span class="kw-2">&amp;</span>decrypted_serialised).unwrap();
+	decrypted
 }
 
 <span class="attr">#[derive(
@@ -1911,7 +2463,7 @@
 	zeroize::Zeroize,
 	zeroize::ZeroizeOnDrop,
 )]
-</span><span class="doccomment">/// A record in a Chrome vault
+</span><span class="doccomment">/// A record in a Google Chrome vault
 </span><span class="kw">pub struct </span>ChromeRecord {
 	<span class="doccomment">/// The name of the record
 	</span><span class="kw">pub </span>name: <span class="prelude-ty">Option</span>&lt;String&gt;,
@@ -1923,389 +2475,40 @@
 	</span><span class="kw">pub </span>password: String,
 }
 
-<span class="doccomment">/// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
-</span><span class="kw">pub fn </span>generate_nonce() -&gt; XNonce {
-	XChaCha20Poly1305::generate_nonce(<span class="kw-2">&amp;mut </span>rand_core::OsRng)
-}
-
-<span class="doccomment">/// Create a new vault from a user-supplied password.
-///
-/// # Arguments
-///
-/// * `password` - The user-supplied password.
-</span><span class="kw">pub fn </span>create_vault_from_password(password: String, version: VaultVersion) -&gt; Vault {
-	<span class="kw">let </span>salt = argon2::password_hash::SaltString::generate(<span class="kw-2">&amp;mut </span>rand_core::OsRng);
-	<span class="kw">let </span>key_and_salt = generate_key_from_password_and_salt(password, <span class="kw-2">&amp;</span>salt, version.clone());
-	<span class="kw">return </span>Vault {
-		salt: salt.as_bytes().to_owned(),
-		key: key_and_salt.<span class="number">0</span>,
-		items: Vec::new(),
-		version,
-	};
-}
-
-<span class="doccomment">/// Generate a vault&#39;s key from a user-supplied password and a pre-generated salt.
-///
-/// # Arguments
-///
-/// * `password` - The user-supplied password.
-///
-/// * `salt` - The pre-generated salt string.
-</span><span class="kw">pub fn </span>generate_key_from_password_and_salt(
-	password: String,
-	salt: <span class="kw-2">&amp;</span>SaltString,
-	version: VaultVersion,
-) -&gt; (String, <span class="kw-2">&amp;</span>SaltString) {
-	<span class="kw">let </span>config = version.get_argon2_config();
-	<span class="kw">let </span>key = config
-		.hash_password(password.as_bytes(), <span class="kw-2">&amp;</span>salt)
-		.unwrap()
-		.to_string();
-	(key, salt)
-}
-
-<span class="doccomment">/// Encrypt a byte array using a vault&#39;s key.
-///
-/// # Arguments
-///
-/// * `key` - A vault&#39;s key.
-///
-/// * `bytes` - The bytes to encrypt.
-///
-/// * `nonce_bytes` - The bytes of the nonce to use.
-</span><span class="kw">pub fn </span>encrypt_bytes(key: <span class="kw-2">&amp;</span>String, bytes: <span class="kw-2">&amp;</span>[u8], nonce_bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; Vec&lt;u8&gt; {
-	<span class="kw">let </span>enc_key = Key::from_slice(<span class="kw-2">&amp;</span>key.as_bytes()[..<span class="number">32</span>]);
-	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
-
-	aead.encrypt(XNonce::from_slice(nonce_bytes), bytes)
-		.unwrap()
-}
-
-<span class="doccomment">/// Decrypt a byte array using the vault&#39;s key.
-///
-/// # Arguments
-///
-/// * `key` - The vault&#39;s key.
-///
-/// * `bytes` - The bytes to decrypt.
-///
-/// * `nonce` - The nonce to use.
-</span><span class="kw">pub fn </span>decrypt_bytes(key: String, bytes: <span class="kw-2">&amp;</span>[u8], nonce: <span class="kw-2">&amp;</span>XNonce) -&gt; Vec&lt;u8&gt; {
-	<span class="kw">let </span>enc_key = Key::from_slice(<span class="kw-2">&amp;</span>key.as_bytes()[..<span class="number">32</span>]);
-	<span class="kw">let </span>aead = XChaCha20Poly1305::new(enc_key);
-
-	aead.decrypt(nonce, bytes).unwrap()
-}
-
-<span class="doccomment">/// Decrypt a secret from the vault.
-///
-/// # Arguments
-///
-/// * `key` - The vault&#39;s key.
-///
-/// * `encrypted_serialised` - The bytes of the encrypted secret.
-///
-/// * `nonce_bytes` - The bytes of the nonce used to encrypt the secret.
-</span><span class="kw">pub fn </span>decrypt_secret(key: String, encrypted_serialised: Vec&lt;u8&gt;, nonce_bytes: Vec&lt;u8&gt;) -&gt; Secret {
-	<span class="comment">// let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
-	</span><span class="kw">let </span>nonce = XNonce::from_slice(<span class="kw-2">&amp;</span>nonce_bytes);
-	<span class="kw">let </span>decrypted_serialised = decrypt_bytes(key, <span class="kw-2">&amp;</span>encrypted_serialised, nonce);
-	<span class="kw">let </span>decrypted: Secret = bincode::deserialize(<span class="kw-2">&amp;</span>decrypted_serialised).unwrap();
-	decrypted
-}
-
-<span class="kw">impl </span>Vault {
-	<span class="doccomment">/// Sorts entries by their last modified date &amp; time, and then deduplicates items which have contents (and, optionally, names) in common.
-	///
-	/// # Arguments
-	///
-	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-	</span><span class="kw">pub fn </span>deduplicate_items(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ignore_names: bool) -&gt; Vec&lt;(Entry, Vec&lt;u8&gt;)&gt; {
-		<span class="self">self</span>.items.sort_by_cached_key(|x| x.<span class="number">0</span>.last_modified);
-		<span class="kw">let </span><span class="kw-2">mut </span>items_clone = <span class="self">self</span>.items.clone();
-		<span class="kw">match </span>ignore_names {
-			<span class="bool-val">true </span>=&gt; {
-				<span class="kw">let </span>(dedup, duplicates) =
-					items_clone.partition_dedup_by(|a, b| a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash);
-				<span class="self">self</span>.items = dedup.to_vec();
-				duplicates.to_vec()
-			}
-			<span class="bool-val">false </span>=&gt; {
-				<span class="kw">let </span>(dedup, duplicates) = items_clone
-					.partition_dedup_by(|a, b| a.<span class="number">0</span>.name == b.<span class="number">0</span>.name &amp;&amp; a.<span class="number">0</span>.hash == b.<span class="number">0</span>.hash);
-				<span class="self">self</span>.items = dedup.to_vec();
-				duplicates.to_vec()
-			}
-		}
-	}
-
-	<span class="doccomment">/// Adds an item into a vault.
-	///
-	/// # Arguments
-	///
-	/// * `entry` - The entry to be added.
-	///
-	/// * `nonce` - The nonce used when encrypting the secret.
-	</span><span class="kw">pub fn </span>add_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>, entry: Entry, nonce: Vec&lt;u8&gt;) {
-		<span class="self">self</span>.items.push((entry, nonce));
-	}
-
-	<span class="doccomment">/// Remove an item from a vault.
-	///
-	/// # Arguments
-	///
-	/// * `entry` - The entry to be removed.
-	</span><span class="kw">pub fn </span>remove_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>, entry: <span class="kw-2">&amp;</span>Entry) {
-		<span class="self">self</span>.items = <span class="self">self</span>.items.drain_filter(|x| x.<span class="number">0</span>.id == entry.id).collect();
-	}
-
-	<span class="doccomment">/// Encrypt an entry into the vault.
-	///
-	/// # Arguments
-	///
-	/// * `self` - The vault.
-	///
-	/// * `item` - The secret to encrypt.
-	</span><span class="kw">pub fn </span>encrypt_secret(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: <span class="kw-2">&amp;mut </span>Secret) -&gt; Vec&lt;u8&gt; {
-		<span class="kw">let </span>serialised: Vec&lt;u8&gt; = bincode::serialize(<span class="kw-2">&amp;</span>item).unwrap();
-		<span class="kw">let </span>encrypted_serialised = encrypt_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.key, <span class="kw-2">&amp;</span>serialised, <span class="kw-2">&amp;</span>item.nonce.clone());
-		<span class="self">self</span>.add_item(item.entry.clone(), item.nonce.clone());
-		encrypted_serialised
-	}
-}
-
-<span class="doccomment">/// Generate a `CorrectHorseBatteryStaple`-style password.\
-/// Optionally, can use two additional elements:
-/// 1. A randomly-picked special character to separate each element (note: the separator will always be a space if `spaces` is true)
-/// 2. A randomly-picked one- or two-digit number (note: if numbers are allowed, the password will always end with one)
-///
-/// # Arguments
-///
-/// * `count` - The number of passwords to generate.
-///
-/// * `length` - The length of the generated passwords.
-///
-/// * `numbers` - Passwords are should contain at least one number.
-///
-/// * `lowercase_letters` - Passwords should contain at least one lowercase letter.
-///
-/// * `uppercase_letters` - Passwords should contain at least one uppercase letter.
-///
-/// * `symbols` - Passwords should contain at least one special character.
-///
-/// * `spaces` - Passwords should use a space to separate each password element.
-///
-/// * `exclude_similar_characters` - Whether or not to exclude similar looking ASCII characters (``iI1loO0&quot;&#39;`|``).
-</span><span class="kw">pub fn </span>correct_horse_battery_staple(
-	count: usize,
-	length: usize,
-	numbers: bool,
-	lowercase_letters: bool,
-	uppercase_letters: bool,
-	symbols: bool,
-	spaces: bool,
-	exclude_similar_characters: bool,
-) -&gt; Vec&lt;String&gt; {
-	<span class="kw">let </span><span class="kw-2">mut </span>result: Vec&lt;String&gt; = Vec::new();
-	<span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-	<span class="kw">for </span>_i <span class="kw">in </span><span class="number">0</span>..count {
-		<span class="kw">let </span><span class="kw-2">mut </span>current_password: Vec&lt;String&gt; = Vec::new();
-		<span class="kw">let </span>separator = <span class="kw">if </span>!spaces {
-			SYMBOLS.choose(<span class="kw-2">&amp;mut </span>rng).unwrap().to_string()
-		} <span class="kw">else </span>{
-			<span class="string">&quot; &quot;</span>.to_owned()
-		};
-		<span class="kw">let </span><span class="kw-2">mut </span>characters_remaining = length;
-		<span class="kw">let </span><span class="kw-2">mut </span>next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::WORD;
-		<span class="kw">while </span>characters_remaining &gt; <span class="number">0 </span>{
-			<span class="kw">match </span>next_element {
-				CorrectHorseBatteryStapleElements::WORD =&gt; {
-					<span class="comment">// Leave three characters for at least a separator and two digits
-					</span><span class="kw">match </span>characters_remaining &gt;= <span class="number">3 </span>{
-						<span class="bool-val">true </span>=&gt; {
-							<span class="kw">let </span><span class="kw-2">mut </span>randomly_selected_word = String::new();
-							<span class="kw">loop </span>{
-								<span class="kw">if </span>!randomly_selected_word.is_empty()
-									&amp;&amp; randomly_selected_word.len() &lt;= characters_remaining - <span class="number">3
-								</span>{
-									<span class="kw">match </span>uppercase_letters &amp;&amp; lowercase_letters {
-										<span class="comment">// Use both uppercase and lowercase letters
-										</span><span class="bool-val">true </span>=&gt; {
-											current_password
-												.push(randomly_selected_word.to_case(Case::Title));
-										}
-										<span class="bool-val">false </span>=&gt; {
-											<span class="kw">match </span>uppercase_letters {
-												<span class="comment">// Use only uppercase letters
-												</span><span class="bool-val">true </span>=&gt; {
-													current_password.push(
-														randomly_selected_word.to_case(Case::Upper),
-													);
-												}
-												<span class="comment">// Use only lowercase letters
-												</span><span class="bool-val">false </span>=&gt; {
-													current_password.push(
-														randomly_selected_word.to_case(Case::Lower),
-													);
-												}
-											}
-										}
-									}
-									characters_remaining -= randomly_selected_word.len();
-									<span class="kw">break</span>;
-								} <span class="kw">else if </span>randomly_selected_word.is_empty()
-									|| randomly_selected_word.len() &gt;= characters_remaining - <span class="number">3
-								</span>{
-									randomly_selected_word = <span class="kw">if </span>!exclude_similar_characters {
-										memorable_wordlist::WORDS
-											.choose(<span class="kw-2">&amp;mut </span>rng)
-											.unwrap()
-											.to_string()
-									} <span class="kw">else </span>{
-										<span class="kw">let </span><span class="kw-2">mut </span>filtered_words =
-											memorable_wordlist::WORDS.to_owned();
-										filtered_words.retain(|<span class="kw-2">&amp;</span>x| {
-											x.contains(|c| SIMILAR_CHARACTERS.contains(<span class="kw-2">&amp;</span>c))
-										});
-										filtered_words.choose(<span class="kw-2">&amp;mut </span>rng).unwrap().to_string()
-									};
-								};
-							}
-						}
-						<span class="bool-val">false </span>=&gt; {}
-					}
-					next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::SEPARATOR;
-				}
-				CorrectHorseBatteryStapleElements::SEPARATOR =&gt; {
-					<span class="kw">match </span>(symbols || spaces) &amp;&amp; characters_remaining &gt; <span class="number">2 </span>{
-						<span class="bool-val">true </span>=&gt; {
-							current_password.push(separator.clone());
-							characters_remaining -= <span class="number">1</span>;
-						}
-						<span class="bool-val">false </span>=&gt; {}
-					}
-					<span class="kw">match </span>characters_remaining &gt; <span class="number">0 </span>&amp;&amp; characters_remaining &lt; <span class="number">3 </span>{
-						<span class="bool-val">true </span>=&gt; {
-							next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::DIGIT;
-						}
-						<span class="bool-val">false </span>=&gt; {
-							next_element = ELEMENTS.choose(<span class="kw-2">&amp;mut </span>rng).unwrap();
-						}
-					}
-				}
-				CorrectHorseBatteryStapleElements::DIGIT =&gt; <span class="kw">match </span>numbers {
-					<span class="bool-val">true </span>=&gt; {
-						<span class="kw">let </span>lower_bound = <span class="kw">if </span>exclude_similar_characters { <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
-						<span class="kw">let </span>random_number_string;
-						<span class="kw">match </span>characters_remaining {
-							<span class="number">1 </span>=&gt; {
-								<span class="kw">let </span>random_number = rng.gen_range(lower_bound..<span class="number">10</span>);
-								random_number_string = random_number.to_string();
-							}
-							<span class="number">2 </span>=&gt; {
-								<span class="kw">let </span>random_first_digit = rng.gen_range(lower_bound..<span class="number">10</span>);
-								<span class="kw">let </span>random_second_digit = rng.gen_range(lower_bound..<span class="number">10</span>);
-								random_number_string = random_first_digit.to_string()
-									+ <span class="kw-2">&amp;</span>random_second_digit.to_string();
-							}
-							n <span class="kw">if </span>n &gt; <span class="number">2 </span>=&gt; {
-								<span class="kw">if </span>rng.gen_bool(<span class="number">0.5</span>) {
-									<span class="kw">let </span>random_number = rng.gen_range(lower_bound..<span class="number">10</span>);
-									random_number_string = random_number.to_string();
-								} <span class="kw">else </span>{
-									<span class="kw">let </span>random_first_digit = rng.gen_range(lower_bound..<span class="number">10</span>);
-									<span class="kw">let </span>random_second_digit = rng.gen_range(lower_bound..<span class="number">10</span>);
-									random_number_string = random_first_digit.to_string()
-										+ <span class="kw-2">&amp;</span>random_second_digit.to_string();
-								}
-							}
-							<span class="kw">_ </span>=&gt; {
-								<span class="macro">unreachable!</span>();
-							}
-						}
-
-						current_password.push(random_number_string.clone());
-						characters_remaining -= random_number_string.len();
-						next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::SEPARATOR;
-					}
-					<span class="bool-val">false </span>=&gt; {
-						next_element = <span class="kw-2">&amp;</span>CorrectHorseBatteryStapleElements::WORD;
-					}
-				},
-			}
-		}
-		result.push(current_password.concat());
-	}
-
-	result
-}
-
-<span class="doccomment">/// Analyses whether or not a password is sufficiently resistant against an attack.
-///
-/// Returns a tuple with a boolean and a string. The boolean is true if the password is sufficiently resistant against an attack, false otherwise.
-///
-/// The string is a message that explains whether the password is or is not sufficiently resistant against an attack, and, if not, some suggestions to give.
-///
-/// # Arguments
-///
-/// * `password` - The password to be analysed.
-</span><span class="kw">pub fn </span>get_password_feedback(password: String) -&gt; (bool, String) {
-	<span class="kw">let </span>is_ok: bool;
-
-	<span class="kw">let </span>analysed_password = analyzer::analyze(<span class="kw-2">&amp;</span>password);
-	<span class="kw">let </span>score = scorer::score(<span class="kw-2">&amp;</span>analysed_password);
-
-	<span class="kw">let </span>strength_estimate = zxcvbn(<span class="kw-2">&amp;</span>password, <span class="kw-2">&amp;</span>[]).unwrap();
-	<span class="kw">let </span>warning_string = <span class="kw">if </span>strength_estimate.feedback().is_some() {
-		<span class="kw">match </span>strength_estimate.feedback().as_ref().unwrap().warning() {
-			<span class="prelude-val">Some</span>(w) =&gt; <span class="macro">format!</span>(<span class="string">&quot;\nWarning: {}&quot;</span>, Paint::red(w.to_string()).bold()),
-			<span class="prelude-val">None </span>=&gt; <span class="string">&quot;&quot;</span>.to_owned(),
-		}
-	} <span class="kw">else </span>{
-		<span class="string">&quot;&quot;</span>.to_owned()
-	};
-	<span class="kw">let </span>suggestions_string = <span class="kw">if </span>strength_estimate.feedback().is_some() {
-		<span class="kw">let </span>suggestions = strength_estimate.feedback().as_ref().unwrap().suggestions();
-		<span class="kw">match </span>suggestions.is_empty() {
-			<span class="bool-val">false </span>=&gt; <span class="macro">format!</span>(
-				<span class="string">&quot;\n{}:\n{}&quot;</span>,
-				Paint::yellow(<span class="string">&quot;Suggestions&quot;</span>).bold(),
-				suggestions
-					.iter()
-					.map(|s| <span class="string">&quot; - &quot;</span>.to_owned() + <span class="kw-2">&amp;</span>s.to_string())
-					.collect_vec()
-					.join(<span class="string">&quot;\n&quot;</span>)
-			),
-			<span class="bool-val">true </span>=&gt; <span class="string">&quot;&quot;</span>.to_owned(),
-		}
-	} <span class="kw">else </span>{
-		<span class="string">&quot;&quot;</span>.to_owned()
-	};
-	<span class="kw">let </span>feedback = <span class="kw">if </span>strength_estimate.score() &lt; <span class="number">3 </span>|| score &lt; <span class="number">80.0 </span>{
-		is_ok = <span class="bool-val">false</span>;
-		<span class="macro">format!</span>(
-			<span class="string">&quot;\n{}{}{}&quot;</span>,
-			Paint::red(<span class="string">&quot;❌ This password is insecure and should not be used.&quot;</span>).bold(),
-			warning_string,
-			suggestions_string
-		)
-	} <span class="kw">else if </span>strength_estimate.score() &gt;= <span class="number">3 </span>&amp;&amp; score &gt;= <span class="number">80.0 </span>{
-		is_ok = <span class="bool-val">true</span>;
-		<span class="macro">format!</span>(
-			<span class="string">&quot;\n{}&quot;</span>,
-			Paint::green(<span class="string">&quot;✔️ This password is sufficiently safe to use.&quot;</span>).bold()
-		)
-	} <span class="kw">else </span>{
-		is_ok = <span class="bool-val">false</span>;
-		<span class="macro">format!</span>(
-			<span class="string">&quot;\n{}{}{}&quot;</span>,
-			Paint::yellow(<span class="string">&quot;⚠️ This password may not be secure.&quot;</span>).bold(),
-			warning_string,
-			suggestions_string
-		)
-	};
-
-	(is_ok, feedback)
+<span class="attr">#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+</span><span class="doccomment">/// A record in an iCloud Keychain vault
+</span><span class="kw">pub struct </span>KeychainRecord {
+	<span class="doccomment">/// The title of the record
+	</span><span class="attr">#[serde(rename = <span class="string">&quot;Title&quot;</span>)]
+	</span><span class="kw">pub </span>title: String,
+	<span class="doccomment">/// The URL of the record
+	</span><span class="attr">#[serde(rename = <span class="string">&quot;URL&quot;</span>)]
+	</span><span class="kw">pub </span>url: String,
+	<span class="doccomment">/// The username of the record
+	</span><span class="attr">#[serde(rename = <span class="string">&quot;Username&quot;</span>)]
+	</span><span class="kw">pub </span>username: <span class="prelude-ty">Option</span>&lt;String&gt;,
+	<span class="doccomment">/// The password of the record
+	</span><span class="attr">#[serde(rename = <span class="string">&quot;Password&quot;</span>)]
+	</span><span class="kw">pub </span>password: String,
+	<span class="doccomment">/// The notes of the record
+	</span><span class="attr">#[serde(rename = <span class="string">&quot;Notes&quot;</span>)]
+	</span><span class="kw">pub </span>notes: <span class="prelude-ty">Option</span>&lt;String&gt;,
+	<span class="doccomment">/// The OTP information of the record
+	</span><span class="attr">#[serde(rename = <span class="string">&quot;OTPAuth&quot;</span>)]
+	</span><span class="kw">pub </span>otp_auth: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }
 
 <span class="doccomment">/// Gets a list of secrets from an exported Bitwarden vault.
@@ -2492,11 +2695,11 @@
 	secrets
 }
 
-<span class="doccomment">/// Gets a list of secrets from an exported Chrome vault.
+<span class="doccomment">/// Gets a list of secrets from an exported Google Chrome vault.
 ///
 /// # Arguments
 ///
-/// * `path` - The path to the exported Chrome vault.
+/// * `path` - The path to the exported Google Chrome vault.
 </span><span class="kw">pub fn </span>get_secrets_from_chrome(path: PathBuf) -&gt; Vec&lt;Secret&gt; {
 	<span class="kw">let </span>file = std::fs::File::open(path).unwrap();
 	<span class="kw">let </span>reader = std::io::BufReader::new(file);
@@ -2549,5 +2752,52 @@
 	}
 	secrets
 }
+
+<span class="doccomment">/// Gets a list of secrets from an exported iCloud Keychain vault.
+///
+/// # Arguments
+///
+/// * `path` - The path to the exported iCloud Keychain vault.
+</span><span class="kw">pub fn </span>get_secrets_from_keychain(path: PathBuf) -&gt; Vec&lt;Secret&gt; {
+	<span class="kw">let </span>file = std::fs::File::open(path).unwrap();
+	<span class="kw">let </span>reader = std::io::BufReader::new(file);
+
+	<span class="kw">let </span><span class="kw-2">mut </span>secrets: Vec&lt;Secret&gt; = Vec::new();
+
+	<span class="kw">let </span><span class="kw-2">mut </span>csv_reader = csv::Reader::from_reader(reader);
+	<span class="kw">for </span>result <span class="kw">in </span>csv_reader.deserialize() {
+		<span class="kw">let </span>record: KeychainRecord = result.unwrap();
+
+		<span class="kw">let </span>contents = <span class="macro">format!</span>(
+			<span class="string">&quot;URL: {}\nUsername: {}\nPassword: {}\nNotes:\n{}\nOTP: {}&quot;</span>,
+			record.url.clone(),
+			record.username.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)),
+			record.password.clone(),
+			record.notes.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>)),
+			record.otp_auth.clone().unwrap_or(String::from(<span class="string">&quot;None&quot;</span>))
+		);
+
+		<span class="kw">let </span><span class="kw-2">mut </span>hasher = Blake2bVar::new(<span class="number">64</span>).unwrap();
+		hasher.update(contents.as_bytes());
+		<span class="kw">let </span><span class="kw-2">mut </span>content_hash = [<span class="number">0u8</span>; <span class="number">64</span>];
+		hasher.finalize_variable(<span class="kw-2">&amp;mut </span>content_hash).unwrap();
+
+		<span class="kw">let </span>new_entry = Entry {
+			name: record.title.clone(),
+			id: Uuid::now_v7(),
+			hash: content_hash.to_vec(),
+			last_modified: chrono::offset::Utc::now(),
+		};
+
+		<span class="kw">let </span>new_secret = Secret {
+			entry: new_entry,
+			contents: contents.as_bytes().to_vec(),
+			nonce: generate_nonce().to_vec(),
+		};
+
+		secrets.push(new_secret);
+	}
+	secrets
+}
 </code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="vaultist" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0-nightly (3020239de 2023-01-09)" data-search-js="search-181581080540673f.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-58836c674e2f7bd2.css" ></div></body></html>
+</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="vaultist" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0-nightly (1e4f90061 2023-01-11)" data-search-js="search-181581080540673f.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-58836c674e2f7bd2.css" ></div></body></html>
