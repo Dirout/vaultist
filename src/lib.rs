@@ -530,7 +530,7 @@ pub fn encrypt_bytes(key: &[u8], bytes: &[u8], nonce_bytes: Option<&[u8]>) -> Ve
 ///
 /// * `nonce` - The nonce to use.
 pub fn decrypt_bytes(key: &[u8], bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
-	let aead = XChaCha20Poly1305::new_from_slice(&key).unwrap();
+	let aead = XChaCha20Poly1305::new_from_slice(key).unwrap();
 
 	aead.decrypt(nonce, bytes).unwrap()
 }

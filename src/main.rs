@@ -431,7 +431,7 @@ fn see_item(matches: &clap::ArgMatches) {
 	);
 	let deserialised_items: Vec<vaultist::Secret> = vault.decrypt_vault_entries_by_key(&key.1);
 
-	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
+	let index = Index::open(MmapDirectory::open(path_buf).unwrap()).unwrap();
 	let schema = index.schema();
 	let name = schema.get_field("title").unwrap();
 	let id = schema.get_field("id").unwrap();
@@ -483,7 +483,7 @@ fn see_item(matches: &clap::ArgMatches) {
 	// Show the cursor again
 	print!("\x1B[?25h");
 
-	let deserialised_items_clone = deserialised_items.clone();
+	let deserialised_items_clone = deserialised_items;
 	let selected_item = deserialised_items_clone
 		.iter()
 		.filter_map(|val| {
@@ -607,7 +607,7 @@ fn change_item(matches: &clap::ArgMatches) {
 	// Show the cursor again
 	print!("\x1B[?25h");
 
-	let copy_of_items = deserialised_items.clone();
+	let copy_of_items = deserialised_items;
 	let selected_item = copy_of_items
 		.iter()
 		.filter_map(|val| {
@@ -789,7 +789,7 @@ fn remove_item(matches: &clap::ArgMatches) {
 	// Show the cursor again
 	print!("\x1B[?25h");
 
-	let copy_of_items = deserialised_items.clone();
+	let copy_of_items = deserialised_items;
 	let selected_item = copy_of_items
 		.iter()
 		.filter_map(|val| {
@@ -1524,10 +1524,9 @@ fn export(matches: &clap::ArgMatches) {
 		),
 		"yaml_enc" => vaultist::encrypt_bytes(
 			&key.1,
-			&serde_yaml::to_string(&deserialised_items)
+			serde_yaml::to_string(&deserialised_items)
 				.unwrap()
-				.as_bytes()
-				.to_vec(),
+				.as_bytes(),
 			Some(&vault.nonce),
 		),
 		"bin_enc" => vaultist::encrypt_bytes(
@@ -1606,7 +1605,6 @@ fn import(matches: &clap::ArgMatches) {
 	let exported_bytes = read_file(export_path_buf.clone());
 	let export_format = export_path_buf
 		.extension()
-		.clone()
 		.unwrap()
 		.to_str()
 		.unwrap();
