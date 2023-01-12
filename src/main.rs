@@ -1603,11 +1603,7 @@ fn import(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	let exported_bytes = read_file(export_path_buf.clone());
-	let export_format = export_path_buf
-		.extension()
-		.unwrap()
-		.to_str()
-		.unwrap();
+	let export_format = export_path_buf.extension().unwrap().to_str().unwrap();
 	let exported_items: Vec<vaultist::Secret> = match export_format {
 		"json" => serde_json::from_slice(&exported_bytes).unwrap(),
 		"yaml" => serde_yaml::from_slice(&exported_bytes).unwrap(),

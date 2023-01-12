@@ -15,7 +15,8 @@ jobs:
       - name: Install development dependencies
         run: |
           brew update > /dev/null
-          brew install openssl openssl@1.1 > /dev/null
+          brew upgrade > /dev/null
+          brew install openssl@3 openssl@1.1 > /dev/null
       - name: Setup Rust toolchain for AMD64
         uses: actions-rs/toolchain@v1
         with:
