@@ -27,7 +27,7 @@ use blake2::digest::Update;
 use blake2::digest::VariableOutput;
 use blake2::Blake2bVar;
 use chacha20poly1305::aead::{Aead, AeadCore};
-use chacha20poly1305::{Key, KeyInit, XChaCha20Poly1305, XNonce};
+use chacha20poly1305::{KeyInit, XChaCha20Poly1305, XNonce};
 use chrono::NaiveDateTime;
 use chrono::Utc;
 use convert_case::{Case, Casing};
@@ -41,6 +41,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::path::PathBuf;
+use std::str;
 use url::Url;
 use uuid::Uuid;
 use yansi::Paint;
@@ -66,6 +67,240 @@ pub enum CorrectHorseBatteryStapleElements {
 	DIGIT,
 }
 
+/// Generate a `CorrectHorseBatteryStaple`-style password.\
+/// Optionally, can use two additional elements:
+/// 1. A randomly-picked special character to separate each element (note: the separator will always be a space if `spaces` is true)
+/// 2. A randomly-picked one- or two-digit number (note: if numbers are allowed, the password will always end with one)
+///
+/// # Arguments
+///
+/// * `count` - The number of passwords to generate.
+///
+/// * `length` - The length of the generated passwords.
+///
+/// * `numbers` - Passwords are should contain at least one number.
+///
+/// * `lowercase_letters` - Passwords should contain at least one lowercase letter.
+///
+/// * `uppercase_letters` - Passwords should contain at least one uppercase letter.
+///
+/// * `symbols` - Passwords should contain at least one special character.
+///
+/// * `spaces` - Passwords should use a space to separate each password element.
+///
+/// * `exclude_similar_characters` - Whether or not to exclude similar looking ASCII characters (``iI1loO0"'`|``).
+pub fn correct_horse_battery_staple(
+	count: usize,
+	length: usize,
+	numbers: bool,
+	lowercase_letters: bool,
+	uppercase_letters: bool,
+	symbols: bool,
+	spaces: bool,
+	exclude_similar_characters: bool,
+) -> Vec<String> {
+	let mut result: Vec<String> = Vec::new();
+	let mut rng = rand::thread_rng();
+	for _i in 0..count {
+		let mut current_password: Vec<String> = Vec::new();
+		let separator = if !spaces {
+			SYMBOLS.choose(&mut rng).unwrap().to_string()
+		} else {
+			" ".to_owned()
+		};
+		let mut characters_remaining = length;
+		let mut next_element = &CorrectHorseBatteryStapleElements::WORD;
+		while characters_remaining > 0 {
+			match next_element {
+				CorrectHorseBatteryStapleElements::WORD => {
+					// Leave three characters for at least a separator and two digits
+					match characters_remaining >= 3 {
+						true => {
+							let mut randomly_selected_word = String::new();
+							loop {
+								if !randomly_selected_word.is_empty()
+									&& randomly_selected_word.len() <= characters_remaining - 3
+								{
+									match uppercase_letters && lowercase_letters {
+										// Use both uppercase and lowercase letters
+										true => {
+											current_password
+												.push(randomly_selected_word.to_case(Case::Title));
+										}
+										false => {
+											match uppercase_letters {
+												// Use only uppercase letters
+												true => {
+													current_password.push(
+														randomly_selected_word.to_case(Case::Upper),
+													);
+												}
+												// Use only lowercase letters
+												false => {
+													current_password.push(
+														randomly_selected_word.to_case(Case::Lower),
+													);
+												}
+											}
+										}
+									}
+									characters_remaining -= randomly_selected_word.len();
+									break;
+								} else if randomly_selected_word.is_empty()
+									|| randomly_selected_word.len() >= characters_remaining - 3
+								{
+									randomly_selected_word = if !exclude_similar_characters {
+										memorable_wordlist::WORDS
+											.choose(&mut rng)
+											.unwrap()
+											.to_string()
+									} else {
+										let mut filtered_words =
+											memorable_wordlist::WORDS.to_owned();
+										filtered_words.retain(|&x| {
+											x.contains(|c| SIMILAR_CHARACTERS.contains(&c))
+										});
+										filtered_words.choose(&mut rng).unwrap().to_string()
+									};
+								};
+							}
+						}
+						false => {}
+					}
+					next_element = &CorrectHorseBatteryStapleElements::SEPARATOR;
+				}
+				CorrectHorseBatteryStapleElements::SEPARATOR => {
+					match (symbols || spaces) && characters_remaining > 2 {
+						true => {
+							current_password.push(separator.clone());
+							characters_remaining -= 1;
+						}
+						false => {}
+					}
+					match characters_remaining > 0 && characters_remaining < 3 {
+						true => {
+							next_element = &CorrectHorseBatteryStapleElements::DIGIT;
+						}
+						false => {
+							next_element = ELEMENTS.choose(&mut rng).unwrap();
+						}
+					}
+				}
+				CorrectHorseBatteryStapleElements::DIGIT => match numbers {
+					true => {
+						let lower_bound = if exclude_similar_characters { 2 } else { 0 };
+						let random_number_string;
+						match characters_remaining {
+							1 => {
+								let random_number = rng.gen_range(lower_bound..10);
+								random_number_string = random_number.to_string();
+							}
+							2 => {
+								let random_first_digit = rng.gen_range(lower_bound..10);
+								let random_second_digit = rng.gen_range(lower_bound..10);
+								random_number_string = random_first_digit.to_string()
+									+ &random_second_digit.to_string();
+							}
+							n if n > 2 => {
+								if rng.gen_bool(0.5) {
+									let random_number = rng.gen_range(lower_bound..10);
+									random_number_string = random_number.to_string();
+								} else {
+									let random_first_digit = rng.gen_range(lower_bound..10);
+									let random_second_digit = rng.gen_range(lower_bound..10);
+									random_number_string = random_first_digit.to_string()
+										+ &random_second_digit.to_string();
+								}
+							}
+							_ => {
+								unreachable!();
+							}
+						}
+
+						current_password.push(random_number_string.clone());
+						characters_remaining -= random_number_string.len();
+						next_element = &CorrectHorseBatteryStapleElements::SEPARATOR;
+					}
+					false => {
+						next_element = &CorrectHorseBatteryStapleElements::WORD;
+					}
+				},
+			}
+		}
+		result.push(current_password.concat());
+	}
+
+	result
+}
+
+/// Analyses whether or not a password is sufficiently resistant against an attack.
+///
+/// Returns a tuple with a boolean and a string. The boolean is true if the password is sufficiently resistant against an attack, false otherwise.
+///
+/// The string is a message that explains whether the password is or is not sufficiently resistant against an attack, and, if not, some suggestions to give.
+///
+/// # Arguments
+///
+/// * `password` - The password to be analysed.
+pub fn get_password_feedback(password: String) -> (bool, String) {
+	let is_ok: bool;
+
+	let analysed_password = analyzer::analyze(&password);
+	let score = scorer::score(&analysed_password);
+
+	let strength_estimate = zxcvbn(&password, &[]).unwrap();
+	let warning_string = if strength_estimate.feedback().is_some() {
+		match strength_estimate.feedback().as_ref().unwrap().warning() {
+			Some(w) => format!("\nWarning: {}", Paint::red(w.to_string()).bold()),
+			None => "".to_owned(),
+		}
+	} else {
+		"".to_owned()
+	};
+	let suggestions_string = if strength_estimate.feedback().is_some() {
+		let suggestions = strength_estimate.feedback().as_ref().unwrap().suggestions();
+		match suggestions.is_empty() {
+			false => format!(
+				"\n{}:\n{}",
+				Paint::yellow("Suggestions").bold(),
+				suggestions
+					.iter()
+					.map(|s| " - ".to_owned() + &s.to_string())
+					.collect_vec()
+					.join("\n")
+			),
+			true => "".to_owned(),
+		}
+	} else {
+		"".to_owned()
+	};
+	let feedback = if strength_estimate.score() < 3 || score < 80.0 {
+		is_ok = false;
+		format!(
+			"\n{}{}{}",
+			Paint::red("❌ This password is insecure and should not be used.").bold(),
+			warning_string,
+			suggestions_string
+		)
+	} else if strength_estimate.score() >= 3 && score >= 80.0 {
+		is_ok = true;
+		format!(
+			"\n{}",
+			Paint::green("✔️ This password is sufficiently safe to use.").bold()
+		)
+	} else {
+		is_ok = false;
+		format!(
+			"\n{}{}{}",
+			Paint::yellow("⚠️ This password may not be secure.").bold(),
+			warning_string,
+			suggestions_string
+		)
+	};
+
+	(is_ok, feedback)
+}
+
 #[derive(Eq, PartialEq, PartialOrd, Clone, Debug, Serialize, Deserialize, From, Hash)]
 /// The possible versions of a Vaultist vault
 pub enum VaultVersion {
@@ -86,11 +321,11 @@ impl VaultVersion {
 	}
 
 	/// Gets the Argon2 configuration for the vault version
-	pub fn get_argon2_config(&self) -> argon2::Argon2 {
+	pub fn get_argon2_config(&self) -> (argon2::Algorithm, argon2::Version, argon2::Params) {
 		match self {
-			VaultVersion::December2022 => argon2::Argon2::new(
-				argon2::Algorithm::default(),
-				argon2::Version::default(),
+			VaultVersion::December2022 => (
+				argon2::Algorithm::Argon2id,
+				argon2::Version::V0x13,
 				argon2::Params::new(1048576u32, 4u32, 4u32, None).unwrap(),
 			),
 		}
@@ -102,12 +337,10 @@ impl VaultVersion {
 	PartialEq,
 	PartialOrd,
 	Clone,
-	Default,
 	Debug,
 	Serialize,
 	Deserialize,
 	From,
-	Constructor,
 	zeroize::Zeroize,
 	zeroize::ZeroizeOnDrop,
 )]
@@ -115,14 +348,208 @@ impl VaultVersion {
 pub struct Vault {
 	/// The salt applied to the vault's password
 	pub salt: Vec<u8>,
-	/// The key of the vault
-	pub key: String,
-	#[zeroize(skip)]
-	/// The entries representing the secrets (and the nonces used to encrypt them) within the vault
-	pub items: Vec<(Entry, Vec<u8>)>,
+	/// The nonce used to encrypt the vault
+	pub nonce: XNonce,
+	/// The encrypted secrets in the vault
+	pub encrypted_secrets: Vec<u8>,
 	#[zeroize(skip)]
 	/// The version of the vault
 	pub version: VaultVersion,
+}
+
+impl Default for Vault {
+	fn default() -> Self {
+		Vault {
+			salt: generate_salt(),
+			nonce: generate_nonce(),
+			encrypted_secrets: vec![],
+			version: VaultVersion::default(),
+		}
+	}
+}
+
+impl Vault {
+	/// Create a new vault with a user-supplied password.
+	///
+	/// # Arguments
+	///
+	/// * `password` - The password to use to encrypt the vault.
+	pub fn new(password: String) -> Vault {
+		let mut this = Vault::default();
+		let secrets: Vec<Secret> = Vec::new();
+		this.encrypted_secrets = encrypt_bytes(
+			&this.generate_key_from_password(password).1,
+			&bincode::serialize(&secrets).unwrap(),
+			Some(&this.nonce),
+		);
+		this
+	}
+
+	/// Decrypt a vector of secrets with a user-supplied password.
+	///
+	/// # Arguments
+	///
+	/// * `password` - The user-supplied password.
+	pub fn decrypt_vault_entries_by_password(&mut self, password: String) -> Vec<Secret> {
+		let key = self.generate_key_from_password(password);
+		self.decrypt_vault_entries_by_key(&key.1)
+	}
+
+	/// Decrypt a vector of secrets with a generated key.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The key to decrypt the vault with.
+	pub fn decrypt_vault_entries_by_key(&mut self, key: &[u8]) -> Vec<Secret> {
+		bincode::deserialize(&decrypt_bytes(key, &self.encrypted_secrets, &self.nonce)).unwrap()
+	}
+
+	/// Generate a vault's key from a user-supplied password and a pre-generated salt.
+	///
+	/// # Arguments
+	///
+	/// * `password` - The user-supplied password.
+	pub fn generate_key_from_password(&mut self, password: String) -> (String, Vec<u8>) {
+		let salt_string = &SaltString::new(str::from_utf8(&self.salt).unwrap()).unwrap();
+		let config = self.version.get_argon2_config();
+		let argon2 = argon2::Argon2::new(config.0, config.1, config.2);
+		let key = argon2
+			.hash_password(password.as_bytes(), salt_string)
+			.unwrap();
+		// println!("GEN_KEY_STR: {}", key);
+		// println!("GEN_KEY_BYTES: {}", key.hash.unwrap());
+		(key.to_string(), key.hash.unwrap().as_bytes().to_vec())
+	}
+
+	/// Sorts entries by their last modified date & time, and then deduplicates items which have contents (and, optionally, names) in common.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The key to decrypt the vault with.
+	///
+	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
+	pub fn deduplicate_items(&mut self, key: &[u8], ignore_names: bool) -> Vec<Secret> {
+		let mut items = self.decrypt_vault_entries_by_key(key.clone());
+		items.sort_by_cached_key(|x| x.entry.last_modified);
+		let mut items_clone = items.clone();
+		match ignore_names {
+			true => {
+				let (dedup, duplicates) =
+					items_clone.partition_dedup_by(|a, b| a.entry.hash == b.entry.hash);
+				self.encrypt_secrets(key, dedup.to_vec());
+				duplicates.to_vec()
+			}
+			false => {
+				let (dedup, duplicates) = items_clone.partition_dedup_by(|a, b| {
+					a.entry.name == b.entry.name && a.entry.hash == b.entry.hash
+				});
+				self.encrypt_secrets(key, dedup.to_vec());
+				duplicates.to_vec()
+			}
+		}
+	}
+
+	/// Remove an item from a vault.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The key to decrypt the vault with.
+	///
+	/// * `entry` - The entry to be removed.
+	pub fn remove_item(&mut self, key: &[u8], entry: &Entry) {
+		let mut items = self.decrypt_vault_entries_by_key(key.clone());
+		items.retain(|x| x.entry.id != entry.id);
+		self.encrypted_secrets =
+			encrypt_bytes(key, &bincode::serialize(&items).unwrap(), Some(&self.nonce));
+	}
+
+	/// Encrypt a vector of secrets into the vault.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The vault's key.
+	///
+	/// * `items` - The items to encrypt.
+	pub fn encrypt_secrets(&mut self, key: &[u8], items: Vec<Secret>) {
+		self.encrypted_secrets =
+			encrypt_bytes(key, &bincode::serialize(&items).unwrap(), Some(&self.nonce));
+	}
+
+	/// Encrypt an entry into the vault.
+	///
+	/// # Arguments
+	///
+	/// * `key` - The vault's key.
+	///
+	/// * `item` - The secret to encrypt.
+	pub fn encrypt_secret(&mut self, key: &[u8], item: &mut Secret) {
+		let mut items = self.decrypt_vault_entries_by_key(key.clone());
+		items.push(item.clone());
+		self.encrypt_secrets(key, items);
+	}
+}
+
+/// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
+pub fn generate_nonce() -> XNonce {
+	XChaCha20Poly1305::generate_nonce(&mut rand_core::OsRng)
+}
+
+/// Generates a random salt for use with the Argon2 algorithm.
+pub fn generate_salt() -> Vec<u8> {
+	let salt = argon2::password_hash::SaltString::generate(&mut rand_core::OsRng);
+	salt.as_str().as_bytes().to_vec()
+}
+
+/// Encrypt a byte array using a vault's key.
+///
+/// # Arguments
+///
+/// * `key` - A vault's key.
+///
+/// * `bytes` - The bytes to encrypt.
+///
+/// * `nonce_bytes` - The bytes of the nonce to use.
+pub fn encrypt_bytes(key: &[u8], bytes: &[u8], nonce_bytes: Option<&[u8]>) -> Vec<u8> {
+	// println!("ENC_KEY_UTF8: {}", String::from_utf8_lossy(key));
+	// println!("ENC_KEY_32: {}", String::from_utf8_lossy(&key[..32]));
+	let aead = XChaCha20Poly1305::new_from_slice(&key[..32]).unwrap();
+	let nonce = match nonce_bytes {
+		Some(bytes) => XNonce::from_slice(bytes).to_owned(),
+		None => generate_nonce(),
+	};
+	aead.encrypt(&nonce, bytes).unwrap()
+}
+
+/// Decrypt a byte array using the vault's key.
+///
+/// # Arguments
+///
+/// * `key` - The vault's key.
+///
+/// * `bytes` - The bytes to decrypt.
+///
+/// * `nonce` - The nonce to use.
+pub fn decrypt_bytes(key: &[u8], bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
+	let aead = XChaCha20Poly1305::new_from_slice(&key).unwrap();
+
+	aead.decrypt(nonce, bytes).unwrap()
+}
+
+/// Decrypt a secret from the vault.
+///
+/// # Arguments
+///
+/// * `key` - The vault's key.
+///
+/// * `encrypted_serialised` - The bytes of the encrypted secret.
+///
+/// * `nonce_bytes` - The bytes of the nonce used to encrypt the secret.
+pub fn decrypt_secret(key: &[u8], encrypted_serialised: Vec<u8>, nonce_bytes: Vec<u8>) -> Secret {
+	// let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
+	let nonce = XNonce::from_slice(&nonce_bytes);
+	let decrypted_serialised = decrypt_bytes(key, &encrypted_serialised, nonce);
+	let decrypted: Secret = bincode::deserialize(&decrypted_serialised).unwrap();
+	decrypted
 }
 
 #[derive(
@@ -635,7 +1062,7 @@ pub struct FirefoxRecord {
 	zeroize::Zeroize,
 	zeroize::ZeroizeOnDrop,
 )]
-/// A record in a Chrome vault
+/// A record in a Google Chrome vault
 pub struct ChromeRecord {
 	/// The name of the record
 	pub name: Option<String>,
@@ -647,389 +1074,40 @@ pub struct ChromeRecord {
 	pub password: String,
 }
 
-/// Generates a random nonce for use with the XChaCha20Poly1305 cipher.
-pub fn generate_nonce() -> XNonce {
-	XChaCha20Poly1305::generate_nonce(&mut rand_core::OsRng)
-}
-
-/// Create a new vault from a user-supplied password.
-///
-/// # Arguments
-///
-/// * `password` - The user-supplied password.
-pub fn create_vault_from_password(password: String, version: VaultVersion) -> Vault {
-	let salt = argon2::password_hash::SaltString::generate(&mut rand_core::OsRng);
-	let key_and_salt = generate_key_from_password_and_salt(password, &salt, version.clone());
-	return Vault {
-		salt: salt.as_bytes().to_owned(),
-		key: key_and_salt.0,
-		items: Vec::new(),
-		version,
-	};
-}
-
-/// Generate a vault's key from a user-supplied password and a pre-generated salt.
-///
-/// # Arguments
-///
-/// * `password` - The user-supplied password.
-///
-/// * `salt` - The pre-generated salt string.
-pub fn generate_key_from_password_and_salt(
-	password: String,
-	salt: &SaltString,
-	version: VaultVersion,
-) -> (String, &SaltString) {
-	let config = version.get_argon2_config();
-	let key = config
-		.hash_password(password.as_bytes(), &salt)
-		.unwrap()
-		.to_string();
-	(key, salt)
-}
-
-/// Encrypt a byte array using a vault's key.
-///
-/// # Arguments
-///
-/// * `key` - A vault's key.
-///
-/// * `bytes` - The bytes to encrypt.
-///
-/// * `nonce_bytes` - The bytes of the nonce to use.
-pub fn encrypt_bytes(key: &String, bytes: &[u8], nonce_bytes: &[u8]) -> Vec<u8> {
-	let enc_key = Key::from_slice(&key.as_bytes()[..32]);
-	let aead = XChaCha20Poly1305::new(enc_key);
-
-	aead.encrypt(XNonce::from_slice(nonce_bytes), bytes)
-		.unwrap()
-}
-
-/// Decrypt a byte array using the vault's key.
-///
-/// # Arguments
-///
-/// * `key` - The vault's key.
-///
-/// * `bytes` - The bytes to decrypt.
-///
-/// * `nonce` - The nonce to use.
-pub fn decrypt_bytes(key: String, bytes: &[u8], nonce: &XNonce) -> Vec<u8> {
-	let enc_key = Key::from_slice(&key.as_bytes()[..32]);
-	let aead = XChaCha20Poly1305::new(enc_key);
-
-	aead.decrypt(nonce, bytes).unwrap()
-}
-
-/// Decrypt a secret from the vault.
-///
-/// # Arguments
-///
-/// * `key` - The vault's key.
-///
-/// * `encrypted_serialised` - The bytes of the encrypted secret.
-///
-/// * `nonce_bytes` - The bytes of the nonce used to encrypt the secret.
-pub fn decrypt_secret(key: String, encrypted_serialised: Vec<u8>, nonce_bytes: Vec<u8>) -> Secret {
-	// let nonce_bytes: [u8; 24] = encrypted_serialised[..24].try_into().unwrap();
-	let nonce = XNonce::from_slice(&nonce_bytes);
-	let decrypted_serialised = decrypt_bytes(key, &encrypted_serialised, nonce);
-	let decrypted: Secret = bincode::deserialize(&decrypted_serialised).unwrap();
-	decrypted
-}
-
-impl Vault {
-	/// Sorts entries by their last modified date & time, and then deduplicates items which have contents (and, optionally, names) in common.
-	///
-	/// # Arguments
-	///
-	/// * `ignore_names` - Whether or not to ignore common names in addition to common contents when deduplicating.
-	pub fn deduplicate_items(&mut self, ignore_names: bool) -> Vec<(Entry, Vec<u8>)> {
-		self.items.sort_by_cached_key(|x| x.0.last_modified);
-		let mut items_clone = self.items.clone();
-		match ignore_names {
-			true => {
-				let (dedup, duplicates) =
-					items_clone.partition_dedup_by(|a, b| a.0.hash == b.0.hash);
-				self.items = dedup.to_vec();
-				duplicates.to_vec()
-			}
-			false => {
-				let (dedup, duplicates) = items_clone
-					.partition_dedup_by(|a, b| a.0.name == b.0.name && a.0.hash == b.0.hash);
-				self.items = dedup.to_vec();
-				duplicates.to_vec()
-			}
-		}
-	}
-
-	/// Adds an item into a vault.
-	///
-	/// # Arguments
-	///
-	/// * `entry` - The entry to be added.
-	///
-	/// * `nonce` - The nonce used when encrypting the secret.
-	pub fn add_item(&mut self, entry: Entry, nonce: Vec<u8>) {
-		self.items.push((entry, nonce));
-	}
-
-	/// Remove an item from a vault.
-	///
-	/// # Arguments
-	///
-	/// * `entry` - The entry to be removed.
-	pub fn remove_item(&mut self, entry: &Entry) {
-		self.items = self.items.drain_filter(|x| x.0.id == entry.id).collect();
-	}
-
-	/// Encrypt an entry into the vault.
-	///
-	/// # Arguments
-	///
-	/// * `self` - The vault.
-	///
-	/// * `item` - The secret to encrypt.
-	pub fn encrypt_secret(&mut self, item: &mut Secret) -> Vec<u8> {
-		let serialised: Vec<u8> = bincode::serialize(&item).unwrap();
-		let encrypted_serialised = encrypt_bytes(&self.key, &serialised, &item.nonce.clone());
-		self.add_item(item.entry.clone(), item.nonce.clone());
-		encrypted_serialised
-	}
-}
-
-/// Generate a `CorrectHorseBatteryStaple`-style password.\
-/// Optionally, can use two additional elements:
-/// 1. A randomly-picked special character to separate each element (note: the separator will always be a space if `spaces` is true)
-/// 2. A randomly-picked one- or two-digit number (note: if numbers are allowed, the password will always end with one)
-///
-/// # Arguments
-///
-/// * `count` - The number of passwords to generate.
-///
-/// * `length` - The length of the generated passwords.
-///
-/// * `numbers` - Passwords are should contain at least one number.
-///
-/// * `lowercase_letters` - Passwords should contain at least one lowercase letter.
-///
-/// * `uppercase_letters` - Passwords should contain at least one uppercase letter.
-///
-/// * `symbols` - Passwords should contain at least one special character.
-///
-/// * `spaces` - Passwords should use a space to separate each password element.
-///
-/// * `exclude_similar_characters` - Whether or not to exclude similar looking ASCII characters (``iI1loO0"'`|``).
-pub fn correct_horse_battery_staple(
-	count: usize,
-	length: usize,
-	numbers: bool,
-	lowercase_letters: bool,
-	uppercase_letters: bool,
-	symbols: bool,
-	spaces: bool,
-	exclude_similar_characters: bool,
-) -> Vec<String> {
-	let mut result: Vec<String> = Vec::new();
-	let mut rng = rand::thread_rng();
-	for _i in 0..count {
-		let mut current_password: Vec<String> = Vec::new();
-		let separator = if !spaces {
-			SYMBOLS.choose(&mut rng).unwrap().to_string()
-		} else {
-			" ".to_owned()
-		};
-		let mut characters_remaining = length;
-		let mut next_element = &CorrectHorseBatteryStapleElements::WORD;
-		while characters_remaining > 0 {
-			match next_element {
-				CorrectHorseBatteryStapleElements::WORD => {
-					// Leave three characters for at least a separator and two digits
-					match characters_remaining >= 3 {
-						true => {
-							let mut randomly_selected_word = String::new();
-							loop {
-								if !randomly_selected_word.is_empty()
-									&& randomly_selected_word.len() <= characters_remaining - 3
-								{
-									match uppercase_letters && lowercase_letters {
-										// Use both uppercase and lowercase letters
-										true => {
-											current_password
-												.push(randomly_selected_word.to_case(Case::Title));
-										}
-										false => {
-											match uppercase_letters {
-												// Use only uppercase letters
-												true => {
-													current_password.push(
-														randomly_selected_word.to_case(Case::Upper),
-													);
-												}
-												// Use only lowercase letters
-												false => {
-													current_password.push(
-														randomly_selected_word.to_case(Case::Lower),
-													);
-												}
-											}
-										}
-									}
-									characters_remaining -= randomly_selected_word.len();
-									break;
-								} else if randomly_selected_word.is_empty()
-									|| randomly_selected_word.len() >= characters_remaining - 3
-								{
-									randomly_selected_word = if !exclude_similar_characters {
-										memorable_wordlist::WORDS
-											.choose(&mut rng)
-											.unwrap()
-											.to_string()
-									} else {
-										let mut filtered_words =
-											memorable_wordlist::WORDS.to_owned();
-										filtered_words.retain(|&x| {
-											x.contains(|c| SIMILAR_CHARACTERS.contains(&c))
-										});
-										filtered_words.choose(&mut rng).unwrap().to_string()
-									};
-								};
-							}
-						}
-						false => {}
-					}
-					next_element = &CorrectHorseBatteryStapleElements::SEPARATOR;
-				}
-				CorrectHorseBatteryStapleElements::SEPARATOR => {
-					match (symbols || spaces) && characters_remaining > 2 {
-						true => {
-							current_password.push(separator.clone());
-							characters_remaining -= 1;
-						}
-						false => {}
-					}
-					match characters_remaining > 0 && characters_remaining < 3 {
-						true => {
-							next_element = &CorrectHorseBatteryStapleElements::DIGIT;
-						}
-						false => {
-							next_element = ELEMENTS.choose(&mut rng).unwrap();
-						}
-					}
-				}
-				CorrectHorseBatteryStapleElements::DIGIT => match numbers {
-					true => {
-						let lower_bound = if exclude_similar_characters { 2 } else { 0 };
-						let random_number_string;
-						match characters_remaining {
-							1 => {
-								let random_number = rng.gen_range(lower_bound..10);
-								random_number_string = random_number.to_string();
-							}
-							2 => {
-								let random_first_digit = rng.gen_range(lower_bound..10);
-								let random_second_digit = rng.gen_range(lower_bound..10);
-								random_number_string = random_first_digit.to_string()
-									+ &random_second_digit.to_string();
-							}
-							n if n > 2 => {
-								if rng.gen_bool(0.5) {
-									let random_number = rng.gen_range(lower_bound..10);
-									random_number_string = random_number.to_string();
-								} else {
-									let random_first_digit = rng.gen_range(lower_bound..10);
-									let random_second_digit = rng.gen_range(lower_bound..10);
-									random_number_string = random_first_digit.to_string()
-										+ &random_second_digit.to_string();
-								}
-							}
-							_ => {
-								unreachable!();
-							}
-						}
-
-						current_password.push(random_number_string.clone());
-						characters_remaining -= random_number_string.len();
-						next_element = &CorrectHorseBatteryStapleElements::SEPARATOR;
-					}
-					false => {
-						next_element = &CorrectHorseBatteryStapleElements::WORD;
-					}
-				},
-			}
-		}
-		result.push(current_password.concat());
-	}
-
-	result
-}
-
-/// Analyses whether or not a password is sufficiently resistant against an attack.
-///
-/// Returns a tuple with a boolean and a string. The boolean is true if the password is sufficiently resistant against an attack, false otherwise.
-///
-/// The string is a message that explains whether the password is or is not sufficiently resistant against an attack, and, if not, some suggestions to give.
-///
-/// # Arguments
-///
-/// * `password` - The password to be analysed.
-pub fn get_password_feedback(password: String) -> (bool, String) {
-	let is_ok: bool;
-
-	let analysed_password = analyzer::analyze(&password);
-	let score = scorer::score(&analysed_password);
-
-	let strength_estimate = zxcvbn(&password, &[]).unwrap();
-	let warning_string = if strength_estimate.feedback().is_some() {
-		match strength_estimate.feedback().as_ref().unwrap().warning() {
-			Some(w) => format!("\nWarning: {}", Paint::red(w.to_string()).bold()),
-			None => "".to_owned(),
-		}
-	} else {
-		"".to_owned()
-	};
-	let suggestions_string = if strength_estimate.feedback().is_some() {
-		let suggestions = strength_estimate.feedback().as_ref().unwrap().suggestions();
-		match suggestions.is_empty() {
-			false => format!(
-				"\n{}:\n{}",
-				Paint::yellow("Suggestions").bold(),
-				suggestions
-					.iter()
-					.map(|s| " - ".to_owned() + &s.to_string())
-					.collect_vec()
-					.join("\n")
-			),
-			true => "".to_owned(),
-		}
-	} else {
-		"".to_owned()
-	};
-	let feedback = if strength_estimate.score() < 3 || score < 80.0 {
-		is_ok = false;
-		format!(
-			"\n{}{}{}",
-			Paint::red("❌ This password is insecure and should not be used.").bold(),
-			warning_string,
-			suggestions_string
-		)
-	} else if strength_estimate.score() >= 3 && score >= 80.0 {
-		is_ok = true;
-		format!(
-			"\n{}",
-			Paint::green("✔️ This password is sufficiently safe to use.").bold()
-		)
-	} else {
-		is_ok = false;
-		format!(
-			"\n{}{}{}",
-			Paint::yellow("⚠️ This password may not be secure.").bold(),
-			warning_string,
-			suggestions_string
-		)
-	};
-
-	(is_ok, feedback)
+#[derive(
+	Eq,
+	PartialEq,
+	PartialOrd,
+	Clone,
+	Default,
+	Debug,
+	Serialize,
+	Deserialize,
+	From,
+	Constructor,
+	zeroize::Zeroize,
+	zeroize::ZeroizeOnDrop,
+)]
+/// A record in an iCloud Keychain vault
+pub struct KeychainRecord {
+	/// The title of the record
+	#[serde(rename = "Title")]
+	pub title: String,
+	/// The URL of the record
+	#[serde(rename = "URL")]
+	pub url: String,
+	/// The username of the record
+	#[serde(rename = "Username")]
+	pub username: Option<String>,
+	/// The password of the record
+	#[serde(rename = "Password")]
+	pub password: String,
+	/// The notes of the record
+	#[serde(rename = "Notes")]
+	pub notes: Option<String>,
+	/// The OTP information of the record
+	#[serde(rename = "OTPAuth")]
+	pub otp_auth: Option<String>,
 }
 
 /// Gets a list of secrets from an exported Bitwarden vault.
@@ -1216,11 +1294,11 @@ pub fn get_secrets_from_firefox(path: PathBuf) -> Vec<Secret> {
 	secrets
 }
 
-/// Gets a list of secrets from an exported Chrome vault.
+/// Gets a list of secrets from an exported Google Chrome vault.
 ///
 /// # Arguments
 ///
-/// * `path` - The path to the exported Chrome vault.
+/// * `path` - The path to the exported Google Chrome vault.
 pub fn get_secrets_from_chrome(path: PathBuf) -> Vec<Secret> {
 	let file = std::fs::File::open(path).unwrap();
 	let reader = std::io::BufReader::new(file);
@@ -1258,6 +1336,53 @@ pub fn get_secrets_from_chrome(path: PathBuf) -> Vec<Secret> {
 
 		let new_entry = Entry {
 			name: record_name,
+			id: Uuid::now_v7(),
+			hash: content_hash.to_vec(),
+			last_modified: chrono::offset::Utc::now(),
+		};
+
+		let new_secret = Secret {
+			entry: new_entry,
+			contents: contents.as_bytes().to_vec(),
+			nonce: generate_nonce().to_vec(),
+		};
+
+		secrets.push(new_secret);
+	}
+	secrets
+}
+
+/// Gets a list of secrets from an exported iCloud Keychain vault.
+///
+/// # Arguments
+///
+/// * `path` - The path to the exported iCloud Keychain vault.
+pub fn get_secrets_from_keychain(path: PathBuf) -> Vec<Secret> {
+	let file = std::fs::File::open(path).unwrap();
+	let reader = std::io::BufReader::new(file);
+
+	let mut secrets: Vec<Secret> = Vec::new();
+
+	let mut csv_reader = csv::Reader::from_reader(reader);
+	for result in csv_reader.deserialize() {
+		let record: KeychainRecord = result.unwrap();
+
+		let contents = format!(
+			"URL: {}\nUsername: {}\nPassword: {}\nNotes:\n{}\nOTP: {}",
+			record.url.clone(),
+			record.username.clone().unwrap_or(String::from("None")),
+			record.password.clone(),
+			record.notes.clone().unwrap_or(String::from("None")),
+			record.otp_auth.clone().unwrap_or(String::from("None"))
+		);
+
+		let mut hasher = Blake2bVar::new(64).unwrap();
+		hasher.update(contents.as_bytes());
+		let mut content_hash = [0u8; 64];
+		hasher.finalize_variable(&mut content_hash).unwrap();
+
+		let new_entry = Entry {
+			name: record.title.clone(),
 			id: Uuid::now_v7(),
 			hash: content_hash.to_vec(),
 			last_modified: chrono::offset::Utc::now(),

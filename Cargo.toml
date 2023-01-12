@@ -58,9 +58,7 @@ csv = "1.1.6"
 derive_more = { version = "0.99.17", features = ["default", "convert_case", "generate-parsing-rs", "testing-helpers", "nightly", "peg", "rustc_version" ] }
 dialoguer = { version = "0.10.2", features = ["editor", "password", "fuzzy-select"] }
 edit = "0.1.4"
-filenamify = "0.1.0"
 generic-array = { version = "0.14.6", features = ["serde"] }
-git2 = "0.15.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 memorable-wordlist = "0.1.7"

@@ -32,8 +32,8 @@ use blake2::Blake2bVar;
 use clap::{arg, crate_version, value_parser, ArgMatches, Command};
 use dialoguer::console::Term;
 use dialoguer::theme::ColorfulTheme;
+use dialoguer::Editor;
 use dialoguer::{FuzzySelect, Input};
-use filenamify::filenamify;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use miette::miette;
@@ -100,12 +100,18 @@ lazy_static! {
 	.subcommand(Command::new("import_firefox").about("Import items from a Firefox vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
 		.arg(arg!(FIREFOX_EXPORT_PATH: "Path to an exported Firefox vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("import_chrome").about("Import items from a Chrome vault")
+	.subcommand(Command::new("import_chrome").about("Import items from a Google Chrome vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(CHROME_EXPORT_PATH: "Path to an exported Chrome vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+		.arg(arg!(CHROME_EXPORT_PATH: "Path to an exported Google Chrome vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("import_keychain").about("Import items from an iCloud Keychain vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(KEYCHAIN_EXPORT_PATH: "Path to an exported iCloud Keychain vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
 	.subcommand(Command::new("export").about("Export all items from a vault")
 		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
 		.arg(arg!(export_format: "Format to export items in").required(true).value_parser(value_parser!(String))))
+	.subcommand(Command::new("import").about("Import all items from an exported vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(EXPORT_PATH: "Path to an exported vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
 	.get_matches_from(wild::args());
 }
 
@@ -191,8 +197,14 @@ fn main() {
 		Some(("import_chrome", import_chrome_matches)) => {
 			import_chrome(import_chrome_matches);
 		}
+		Some(("import_keychain", import_keychain_matches)) => {
+			import_keychain(import_keychain_matches);
+		}
 		Some(("export", export_matches)) => {
 			export(export_matches);
+		}
+		Some(("import", import_matches)) => {
+			import(import_matches);
 		}
 		None => writeln!(buf_out, "Vaultist {}", crate_version!()).unwrap(),
 		_ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
@@ -235,10 +247,14 @@ fn new_vault(matches: &clap::ArgMatches) {
 	assert!(password_feedback.0, "{}", password_feedback.1);
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
-	let new_vault = vaultist::create_vault_from_password(
-		confirm_attempt_password,
-		vaultist::VaultVersion::latest(),
-	); // Create the vault
+	let mut new_vault = vaultist::Vault::new(confirm_attempt_password.clone()); // Create the vault
+	let key = new_vault.generate_key_from_password(confirm_attempt_password);
+
+	write_file(
+		path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&new_vault.clone()).unwrap(),
+	);
+
 	timer.stop(); // Stop the stopwatch
 
 	let verify_attempt_password = rpassword::prompt_password(
@@ -249,7 +265,7 @@ fn new_vault(matches: &clap::ArgMatches) {
 		argon2::Argon2::default()
 			.verify_password(
 				verify_attempt_password.as_bytes(),
-				&PasswordHash::new(&new_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not create a secure vault with that password."
@@ -257,19 +273,16 @@ fn new_vault(matches: &clap::ArgMatches) {
 
 	timer.start(); // Resume the stopwatch
 
-	write_file(
-		path_buf.join(".vaultist-vault"),
-		&bincode::serialize(&new_vault).unwrap(),
-	);
-
 	let mut schema_builder = Schema::builder();
 	let _name = schema_builder.add_text_field("title", TEXT | STORED);
 	let _id = schema_builder.add_text_field("id", STRING | STORED);
 	let _last_modified = schema_builder.add_text_field("last_modified", TEXT | STORED);
 	let schema = schema_builder.build();
 	let index = Index::open_or_create(MmapDirectory::open(path_buf).unwrap(), schema).unwrap();
+	let reader = index.reader().unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 	index_writer.commit().unwrap();
+	reader.reload().unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -302,14 +315,15 @@ fn add_item(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
@@ -321,7 +335,11 @@ fn add_item(matches: &clap::ArgMatches) {
 		.interact_text_on(&Term::buffered_stdout())
 		.unwrap();
 	println!("📝 Provide the value of \'{entry_name}\' … ");
-	let secret_contents = edit::edit("").unwrap();
+	let secret_contents = Editor::new()
+		.trim_newlines(false)
+		.edit("")
+		.unwrap()
+		.unwrap_or("".to_owned());
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
@@ -342,18 +360,16 @@ fn add_item(matches: &clap::ArgMatches) {
 		contents: secret_contents.into_bytes(),
 		nonce: nonce.to_vec(),
 	};
-	let encrypted_secret = deserialised_vault.encrypt_secret(&mut new_secret);
-	write_file(
-		path_buf.join(filenamify(new_entry.id.to_string() + ".vaultist")),
-		&encrypted_secret,
-	);
+
+	vault.encrypt_secret(&key.1, &mut new_secret);
 
 	write_file(
 		path_buf.join(".vaultist-vault"),
-		&bincode::serialize(&deserialised_vault).unwrap(),
+		&bincode::serialize(&vault.clone()).unwrap(),
 	);
 
 	let index = Index::open(MmapDirectory::open(path_buf).unwrap()).unwrap();
+	let reader = index.reader().unwrap();
 	let schema = index.schema();
 	let name = schema.get_field("title").unwrap();
 	let id = schema.get_field("id").unwrap();
@@ -367,6 +383,7 @@ fn add_item(matches: &clap::ArgMatches) {
 		))
 		.unwrap();
 	index_writer.commit().unwrap();
+	reader.reload().unwrap();
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -399,18 +416,20 @@ fn see_item(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
 	);
+	let deserialised_items: Vec<vaultist::Secret> = vault.decrypt_vault_entries_by_key(&key.1);
 
 	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
 	let schema = index.schema();
@@ -428,7 +447,7 @@ fn see_item(matches: &clap::ArgMatches) {
 		.unwrap();
 	let query = query_parser.parse_query(&search_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
-		.search(&query, &TopDocs::with_limit(deserialised_vault.items.len()))
+		.search(&query, &TopDocs::with_limit(deserialised_items.len()))
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
@@ -464,11 +483,11 @@ fn see_item(matches: &clap::ArgMatches) {
 	// Show the cursor again
 	print!("\x1B[?25h");
 
-	let deserialised_vault_items_clone = deserialised_vault.items.clone();
-	let selected_item = deserialised_vault_items_clone
+	let deserialised_items_clone = deserialised_items.clone();
+	let selected_item = deserialised_items_clone
 		.iter()
 		.filter_map(|val| {
-			if val.0.id == *result_options.values().nth(selection).unwrap() {
+			if val.entry.id == *result_options.values().nth(selection).unwrap() {
 				Some(val)
 			} else {
 				None
@@ -478,24 +497,15 @@ fn see_item(matches: &clap::ArgMatches) {
 		.unwrap();
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
-	let entry_nonce_map: HashMap<vaultist::Entry, Vec<u8>> =
-		deserialised_vault.items.clone().into_iter().collect();
-	let item_nonce = entry_nonce_map.get(&selected_item.0).unwrap();
-	let encrypted_secret =
-		read_file(path_buf.join(filenamify(selected_item.0.id.to_string() + ".vaultist")));
-	let decrypted_secret = vaultist::decrypt_secret(
-		deserialised_vault.key.clone(),
-		encrypted_secret,
-		item_nonce.to_owned(),
-	);
+
 	writeln!(
 		buf_out,
 		"\n{} ({}):\n\n{}\n\n{} {}\n",
-		Paint::yellow(decrypted_secret.entry.name.clone()).bold(),
-		Paint::fixed(7, decrypted_secret.entry.id.to_string()),
-		Paint::cyan(String::from_utf8(decrypted_secret.contents.clone()).unwrap()),
+		Paint::yellow(selected_item.entry.name.clone()).bold(),
+		Paint::fixed(7, selected_item.entry.id.to_string()),
+		Paint::cyan(String::from_utf8(selected_item.contents.clone()).unwrap()),
 		Paint::yellow("Last modified:").bold(),
-		Paint::fixed(7, decrypted_secret.entry.last_modified.to_rfc2822())
+		Paint::fixed(7, selected_item.entry.last_modified.to_rfc2822())
 	)
 	.unwrap();
 
@@ -530,18 +540,20 @@ fn change_item(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
 	);
+	let deserialised_items: Vec<vaultist::Secret> = vault.decrypt_vault_entries_by_key(&key.1);
 
 	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
 	let schema = index.schema();
@@ -559,7 +571,7 @@ fn change_item(matches: &clap::ArgMatches) {
 		.unwrap();
 	let query = query_parser.parse_query(&search_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
-		.search(&query, &TopDocs::with_limit(deserialised_vault.items.len()))
+		.search(&query, &TopDocs::with_limit(deserialised_items.len()))
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
@@ -595,11 +607,11 @@ fn change_item(matches: &clap::ArgMatches) {
 	// Show the cursor again
 	print!("\x1B[?25h");
 
-	let selected_item = deserialised_vault
-		.items
+	let copy_of_items = deserialised_items.clone();
+	let selected_item = copy_of_items
 		.iter()
 		.filter_map(|val| {
-			if val.0.id == *result_options.values().nth(selection).unwrap() {
+			if val.entry.id == *result_options.values().nth(selection).unwrap() {
 				Some(val)
 			} else {
 				None
@@ -608,32 +620,35 @@ fn change_item(matches: &clap::ArgMatches) {
 		.last()
 		.unwrap();
 
-	let encrypted_secret = read_file(path_buf.join(filenamify(
-		selected_item.clone().0.id.to_string() + ".vaultist",
-	)));
-	let decrypted_secret = vaultist::decrypt_secret(
-		deserialised_vault.clone().key.clone(),
-		encrypted_secret,
-		selected_item.clone().1,
-	);
-
 	writeln!(
 		buf_out,
 		"📝 Provide the new name of \'{}\' … ",
-		decrypted_secret.entry.name
+		selected_item.entry.name
 	)
 	.unwrap();
-	let new_entry_name = edit::edit(decrypted_secret.clone().entry.name.clone())
+	let new_entry_name = Editor::new()
+		.trim_newlines(true)
+		.edit(&selected_item.clone().entry.name)
 		.unwrap()
-		.replace('\n', "");
+		.unwrap_or("".to_owned());
+
+	// Show the cursor again
+	print!("\x1B[?25h");
 
 	writeln!(
 		buf_out,
 		"📝 Provide the new contents of \'{}\' … ",
-		decrypted_secret.entry.name
+		selected_item.entry.name
 	)
 	.unwrap();
-	let new_secret_contents = edit::edit(decrypted_secret.clone().contents.clone()).unwrap();
+	let new_secret_contents = Editor::new()
+		.trim_newlines(false)
+		.edit(&String::from_utf8(selected_item.clone().contents.clone()).unwrap())
+		.unwrap()
+		.unwrap_or("".to_owned());
+
+	// Show the cursor again
+	print!("\x1B[?25h");
 
 	let mut hasher = Blake2bVar::new(64).unwrap();
 	hasher.update(new_secret_contents.as_bytes());
@@ -643,30 +658,23 @@ fn change_item(matches: &clap::ArgMatches) {
 	let new_entry = vaultist::Entry {
 		name: new_entry_name,
 		hash: secret_hash.to_vec(),
-		id: decrypted_secret.entry.id,
+		id: selected_item.entry.id,
 		last_modified: chrono::offset::Utc::now(),
 	};
-	let entry_nonce_map: HashMap<vaultist::Entry, Vec<u8>> =
-		deserialised_vault.items.clone().into_iter().collect();
-	let entry_nonce = entry_nonce_map
-		.get(&decrypted_secret.clone().entry.clone())
-		.unwrap();
+
 	let mut new_secret = vaultist::Secret {
 		entry: new_entry.clone(),
 		contents: new_secret_contents.into_bytes(),
-		nonce: entry_nonce.to_owned(),
+		nonce: selected_item.nonce.to_owned(),
 	};
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	deserialised_vault.remove_item(&decrypted_secret.entry.clone());
-	write_file(
-		path_buf.join(filenamify(new_entry.id.clone().to_string() + ".vaultist")),
-		&deserialised_vault.encrypt_secret(&mut new_secret),
-	);
+	vault.remove_item(&key.1, &selected_item.entry.clone());
+	vault.encrypt_secret(&key.1, &mut new_secret);
 	write_file(
 		path_buf.join(".vaultist-vault"),
-		&bincode::serialize(&deserialised_vault).unwrap(),
+		&bincode::serialize(&vault.clone()).unwrap(),
 	);
 
 	let secret_id_term =
@@ -714,18 +722,20 @@ fn remove_item(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
 	);
+	let deserialised_items: Vec<vaultist::Secret> = vault.decrypt_vault_entries_by_key(&key.1);
 
 	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
 	let schema = index.schema();
@@ -743,7 +753,7 @@ fn remove_item(matches: &clap::ArgMatches) {
 		.unwrap();
 	let query = query_parser.parse_query(&search_query).unwrap();
 	let results: Vec<(Score, DocAddress)> = searcher
-		.search(&query, &TopDocs::with_limit(deserialised_vault.items.len()))
+		.search(&query, &TopDocs::with_limit(deserialised_items.len()))
 		.unwrap();
 
 	let mut result_options: HashMap<String, Uuid> = HashMap::new();
@@ -779,11 +789,11 @@ fn remove_item(matches: &clap::ArgMatches) {
 	// Show the cursor again
 	print!("\x1B[?25h");
 
-	let copy_of_items = deserialised_vault.items.clone();
+	let copy_of_items = deserialised_items.clone();
 	let selected_item = copy_of_items
 		.iter()
 		.filter_map(|val| {
-			if val.0.id == *result_options.values().nth(selection).unwrap() {
+			if val.entry.id == *result_options.values().nth(selection).unwrap() {
 				Some(val)
 			} else {
 				None
@@ -794,18 +804,14 @@ fn remove_item(matches: &clap::ArgMatches) {
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	deserialised_vault.remove_item(&selected_item.0);
-	std::fs::remove_file(path_buf.join(filenamify(
-		selected_item.clone().0.id.to_string() + ".vaultist",
-	)))
-	.unwrap();
+	vault.remove_item(&key.1, &selected_item.entry);
 	write_file(
 		path_buf.join(".vaultist-vault"),
-		&bincode::serialize(&deserialised_vault).unwrap(),
+		&bincode::serialize(&vault.clone()).unwrap(),
 	);
 
 	let secret_id_term =
-		tantivy::schema::Term::from_field_text(id, &selected_item.clone().0.id.to_string());
+		tantivy::schema::Term::from_field_text(id, &selected_item.clone().entry.id.to_string());
 	let mut index_writer = index.writer(100_000_000).unwrap();
 	index_writer.delete_term(secret_id_term);
 	index_writer.commit().unwrap();
@@ -849,14 +855,15 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
@@ -872,13 +879,12 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 	let _last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
-	let duplicate_items = deserialised_vault.deduplicate_items(ignore_names);
+	let duplicate_items = vault.deduplicate_items(&key.1, ignore_names);
+	let duplicate_items_len = duplicate_items.len();
 
 	for item in duplicate_items {
-		std::fs::remove_file(path_buf.join(filenamify(item.0.id.to_string() + ".vaultist")))
-			.unwrap();
 		let secret_id_term =
-			tantivy::schema::Term::from_field_text(id, &item.clone().0.id.to_string());
+			tantivy::schema::Term::from_field_text(id, &item.clone().entry.id.to_string());
 		index_writer.delete_term(secret_id_term);
 	}
 	index_writer.commit().unwrap();
@@ -886,14 +892,15 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 
 	write_file(
 		path_buf.join(".vaultist-vault"),
-		&bincode::serialize(&deserialised_vault).unwrap(),
+		&bincode::serialize(&vault.clone()).unwrap(),
 	);
 
 	// Show how long it took to perform operation
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Removed duplicate vault items in {:.3} seconds.",
+		"\n⏰ Removed {} duplicate vault item(s) in {:.3} seconds.",
+		duplicate_items_len,
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -1108,7 +1115,9 @@ fn analyse_password(matches: &clap::ArgMatches) {
 ///
 /// # Arguments
 ///
-/// * `PATH` - Path to a Bitwarden vault in the filesystem (required).
+/// * `PATH` - Path to a vault in the filesystem (required)
+///
+/// * `BITWARDEN_EXPORT_PATH` - Path to a Bitwarden vault in the filesystem (required).
 fn import_bitwarden(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -1136,14 +1145,15 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 		)),
 	};
 
-	let mut deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(vault_path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
@@ -1152,6 +1162,7 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	let index = Index::open(MmapDirectory::open(vault_path_buf.clone()).unwrap()).unwrap();
+	let reader = index.reader().unwrap();
 	let schema = index.schema();
 	let name = schema.get_field("title").unwrap();
 	let id = schema.get_field("id").unwrap();
@@ -1161,18 +1172,7 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 	let bitwarden_secrets = vaultist::get_secrets_from_bitwarden(bitwarden_path_buf).unwrap(); // Grab items from vault exported from Bitwarden
 	let bitwarden_secrets_len = bitwarden_secrets.len();
 	for mut bitwarden_secret in bitwarden_secrets {
-		let encrypted_secret = deserialised_vault.encrypt_secret(&mut bitwarden_secret);
-		write_file(
-			vault_path_buf.join(filenamify(
-				bitwarden_secret.entry.clone().id.to_string() + ".vaultist",
-			)),
-			&encrypted_secret,
-		);
-
-		write_file(
-			vault_path_buf.join(".vaultist-vault"),
-			&bincode::serialize(&deserialised_vault).unwrap(),
-		);
+		vault.encrypt_secret(&key.1, &mut bitwarden_secret);
 
 		index_writer
 			.add_document(doc!(
@@ -1183,6 +1183,11 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 			.unwrap();
 	}
 	index_writer.commit().unwrap();
+	reader.reload().unwrap();
+	write_file(
+		vault_path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&vault.clone()).unwrap(),
+	);
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -1199,7 +1204,9 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 ///
 /// # Arguments
 ///
-/// * `PATH` - Path to a Firefox vault in the filesystem (required).
+/// * `PATH` - Path to a vault in the filesystem (required)
+///
+/// * `FIREFOX_EXPORT_PATH` - Path to a Firefox vault in the filesystem (required).
 fn import_firefox(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -1227,14 +1234,15 @@ fn import_firefox(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(firefox_path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(vault_path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
@@ -1243,6 +1251,7 @@ fn import_firefox(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	let index = Index::open(MmapDirectory::open(vault_path_buf.clone()).unwrap()).unwrap();
+	let reader = index.reader().unwrap();
 	let schema = index.schema();
 	let name = schema.get_field("title").unwrap();
 	let id = schema.get_field("id").unwrap();
@@ -1252,18 +1261,7 @@ fn import_firefox(matches: &clap::ArgMatches) {
 	let firefox_secrets = vaultist::get_secrets_from_firefox(firefox_path_buf); // Grab items from vault exported from Firefox
 	let firefox_secrets_len = firefox_secrets.len();
 	for mut firefox_secret in firefox_secrets {
-		let encrypted_secret = deserialised_vault.encrypt_secret(&mut firefox_secret);
-		write_file(
-			vault_path_buf.join(filenamify(
-				firefox_secret.entry.clone().id.to_string() + ".vaultist",
-			)),
-			&encrypted_secret,
-		);
-
-		write_file(
-			vault_path_buf.join(".vaultist-vault"),
-			&bincode::serialize(&deserialised_vault).unwrap(),
-		);
+		vault.encrypt_secret(&key.1, &mut firefox_secret);
 
 		index_writer
 			.add_document(doc!(
@@ -1274,6 +1272,11 @@ fn import_firefox(matches: &clap::ArgMatches) {
 			.unwrap();
 	}
 	index_writer.commit().unwrap();
+	reader.reload().unwrap();
+	write_file(
+		vault_path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&vault.clone()).unwrap(),
+	);
 
 	// Show how long it took to perform operation
 	timer.stop();
@@ -1286,11 +1289,13 @@ fn import_firefox(matches: &clap::ArgMatches) {
 	.unwrap();
 }
 
-/// Import items from a Chrome vault.
+/// Import items from a Google Chrome vault.
 ///
 /// # Arguments
 ///
-/// * `PATH` - Path to a Chrome vault in the filesystem (required).
+/// * `PATH` - Path to a vault in the filesystem (required)
+///
+/// * `CHROME_EXPORT_PATH` - Path to a Google Chrome vault in the filesystem (required).
 fn import_chrome(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -1318,14 +1323,15 @@ fn import_chrome(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(chrome_path_buf_input.to_str().unwrap())),
 	};
 
-	let mut deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(vault_path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
@@ -1334,27 +1340,17 @@ fn import_chrome(matches: &clap::ArgMatches) {
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
 	let index = Index::open(MmapDirectory::open(vault_path_buf.clone()).unwrap()).unwrap();
+	let reader = index.reader().unwrap();
 	let schema = index.schema();
 	let name = schema.get_field("title").unwrap();
 	let id = schema.get_field("id").unwrap();
 	let last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
-	let chrome_secrets = vaultist::get_secrets_from_chrome(chrome_path_buf); // Grab items from vault exported from Chrome
+	let chrome_secrets = vaultist::get_secrets_from_chrome(chrome_path_buf); // Grab items from vault exported from Google Chrome
 	let chrome_secrets_len = chrome_secrets.len();
 	for mut chrome_secret in chrome_secrets {
-		let encrypted_secret = deserialised_vault.encrypt_secret(&mut chrome_secret);
-		write_file(
-			vault_path_buf.join(filenamify(
-				chrome_secret.entry.clone().id.to_string() + ".vaultist",
-			)),
-			&encrypted_secret,
-		);
-
-		write_file(
-			vault_path_buf.join(".vaultist-vault"),
-			&bincode::serialize(&deserialised_vault).unwrap(),
-		);
+		vault.encrypt_secret(&key.1, &mut chrome_secret);
 
 		index_writer
 			.add_document(doc!(
@@ -1365,13 +1361,107 @@ fn import_chrome(matches: &clap::ArgMatches) {
 			.unwrap();
 	}
 	index_writer.commit().unwrap();
+	reader.reload().unwrap();
+	write_file(
+		vault_path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&vault.clone()).unwrap(),
+	);
 
 	// Show how long it took to perform operation
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Imported {} secret(s) from Chrome in {:.3} seconds.",
+		"\n⏰ Imported {} secret(s) from Google Chrome in {:.3} seconds.",
 		chrome_secrets_len,
+		timer.elapsed_s()
+	)
+	.unwrap();
+}
+
+/// Import items from an iCloud Keychain vault.
+///
+/// # Arguments
+///
+/// * `PATH` - Path to a vault in the filesystem (required)
+///
+/// * `KEYCHAIN_EXPORT_PATH` - Path to an iCloud Keychain vault in the filesystem (required).
+fn import_keychain(matches: &clap::ArgMatches) {
+	let stdout = std::io::stdout();
+	let stdout_lock = stdout.lock();
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let vault_path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let vault_path_buf = match std::fs::canonicalize(vault_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(vault_path_buf_input.to_str().unwrap())),
+	};
+
+	let keychain_path_buf_input = matches
+		.get_one::<PathBuf>("KEYCHAIN_EXPORT_PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let keychain_path_buf = match std::fs::canonicalize(keychain_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(keychain_path_buf_input.to_str().unwrap())),
+	};
+
+	let mut vault: vaultist::Vault =
+		bincode::deserialize(&read_file(vault_path_buf.join(".vaultist-vault"))).unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
+	assert!(
+		argon2::Argon2::default()
+			.verify_password(
+				verify_password.as_bytes(),
+				&PasswordHash::new(&key.0).unwrap()
+			)
+			.is_ok(),
+		"❌ Could not access vault with that password."
+	);
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let index = Index::open(MmapDirectory::open(vault_path_buf.clone()).unwrap()).unwrap();
+	let reader = index.reader().unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
+	let mut index_writer = index.writer(100_000_000).unwrap();
+
+	let keychain_secrets = vaultist::get_secrets_from_keychain(keychain_path_buf); // Grab items from vault exported from iCloud Keychain
+	let keychain_secrets_len = keychain_secrets.len();
+	for mut keychain_secret in keychain_secrets {
+		vault.encrypt_secret(&key.1, &mut keychain_secret);
+
+		index_writer
+			.add_document(doc!(
+				name => keychain_secret.entry.clone().name,
+				id => keychain_secret.entry.clone().id.to_string(),
+				last_modified => keychain_secret.entry.clone().last_modified.to_rfc2822(),
+			))
+			.unwrap();
+	}
+	index_writer.commit().unwrap();
+	reader.reload().unwrap();
+	write_file(
+		vault_path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&vault.clone()).unwrap(),
+	);
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"\n⏰ Imported {} secret(s) from iCloud Keychain in {:.3} seconds.",
+		keychain_secrets_len,
 		timer.elapsed_s()
 	)
 	.unwrap();
@@ -1402,49 +1492,49 @@ fn export(matches: &clap::ArgMatches) {
 			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
 	};
 
-	let deserialised_vault: vaultist::Vault =
+	let mut vault: vaultist::Vault =
 		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
 	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
 	assert!(
 		argon2::Argon2::default()
 			.verify_password(
 				verify_password.as_bytes(),
-				&PasswordHash::new(&deserialised_vault.key).unwrap()
+				&PasswordHash::new(&key.0).unwrap()
 			)
 			.is_ok(),
 		"❌ Could not access vault with that password."
 	);
+	let deserialised_items: Vec<vaultist::Secret> = vault.decrypt_vault_entries_by_key(&key.1);
+	let deserialised_items_len = deserialised_items.len();
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 
-	let mut decrypted_items: Vec<vaultist::Secret> = Vec::new();
-	for item in &deserialised_vault.items {
-		let entry_nonce_map: HashMap<vaultist::Entry, Vec<u8>> =
-			deserialised_vault.items.clone().into_iter().collect();
-		let item_nonce = entry_nonce_map.get(&item.0).unwrap();
-		let encrypted_secret =
-			read_file(path_buf.join(filenamify(item.0.id.to_string() + ".vaultist")));
-		decrypted_items.push(vaultist::decrypt_secret(
-			deserialised_vault.key.clone(),
-			encrypted_secret,
-			item_nonce.to_owned(),
-		));
-	}
 	let export_bytes = match export_format {
-		"json" => serde_json::to_vec_pretty(&decrypted_items).unwrap(),
-		"yaml" => serde_yaml::to_string(&decrypted_items)
+		"json" => serde_json::to_vec_pretty(&deserialised_items).unwrap(),
+		"yaml" => serde_yaml::to_string(&deserialised_items)
 			.unwrap()
 			.as_bytes()
 			.to_vec(),
-		"bin" => {
-			let nonce = vaultist::generate_nonce();
-			let encrypted_bytes = vaultist::encrypt_bytes(
-				&deserialised_vault.key,
-				&bincode::serialize(&decrypted_items).unwrap(),
-				&nonce,
-			);
-			bincode::serialize(&(encrypted_bytes, nonce)).unwrap()
-		}
+		"bin" => bincode::serialize(&deserialised_items).unwrap(),
+		"json_enc" => vaultist::encrypt_bytes(
+			&key.1,
+			&serde_json::to_vec_pretty(&deserialised_items).unwrap(),
+			Some(&vault.nonce),
+		),
+		"yaml_enc" => vaultist::encrypt_bytes(
+			&key.1,
+			&serde_yaml::to_string(&deserialised_items)
+				.unwrap()
+				.as_bytes()
+				.to_vec(),
+			Some(&vault.nonce),
+		),
+		"bin_enc" => vaultist::encrypt_bytes(
+			&key.1,
+			&bincode::serialize(&deserialised_items).unwrap(),
+			Some(&vault.nonce),
+		),
 		_ => panic!("❌ Invalid export format."),
 	};
 	write_file(
@@ -1456,7 +1546,129 @@ fn export(matches: &clap::ArgMatches) {
 	timer.stop();
 	writeln!(
 		buf_out,
-		"\n⏰ Exported vault items in {:.3} seconds.",
+		"\n⏰ Exported {} vault item(s) in {:.3} seconds.",
+		deserialised_items_len,
+		timer.elapsed_s()
+	)
+	.unwrap();
+}
+
+/// Import all items from an exported vault.
+///
+/// # Arguments
+///
+/// * `PATH` - Path to a vault in the filesystem (required).
+///
+/// * `EXPORT_PATH` - Path to an exported vault in the filesystem (required).
+fn import(matches: &clap::ArgMatches) {
+	let stdout = std::io::stdout();
+	let stdout_lock = stdout.lock();
+	let mut buf_out = BufWriter::new(stdout_lock);
+
+	let export_path_buf_input = matches
+		.get_one::<PathBuf>("EXPORT_PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let export_path_buf = match std::fs::canonicalize(export_path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(export_path_buf_input.to_str().unwrap())),
+	};
+
+	let path_buf_input = matches
+		.get_one::<PathBuf>("PATH")
+		.ok_or(miette!("❌ No path was given"))
+		.unwrap();
+	let path_buf = match std::fs::canonicalize(path_buf_input) {
+		Ok(p) => p,
+		Err(_) => std::env::current_dir()
+			.unwrap()
+			.join(path_clean::clean(path_buf_input.to_str().unwrap())),
+	};
+
+	let mut vault: vaultist::Vault =
+		bincode::deserialize(&read_file(path_buf.join(".vaultist-vault"))).unwrap();
+	let verify_password = rpassword::prompt_password("🔑 Enter your vault password: ").unwrap();
+	let key = vault.generate_key_from_password(verify_password.clone());
+	assert!(
+		argon2::Argon2::default()
+			.verify_password(
+				verify_password.as_bytes(),
+				&PasswordHash::new(&key.0).unwrap()
+			)
+			.is_ok(),
+		"❌ Could not access vault with that password."
+	);
+
+	let mut timer = Stopwatch::start_new(); // Start the stopwatch
+
+	let exported_bytes = read_file(export_path_buf.clone());
+	let export_format = export_path_buf
+		.extension()
+		.clone()
+		.unwrap()
+		.to_str()
+		.unwrap();
+	let exported_items: Vec<vaultist::Secret> = match export_format {
+		"json" => serde_json::from_slice(&exported_bytes).unwrap(),
+		"yaml" => serde_yaml::from_slice(&exported_bytes).unwrap(),
+		"bin" => bincode::deserialize(&exported_bytes).unwrap(),
+		"json_enc" => serde_json::from_slice(&vaultist::decrypt_bytes(
+			&key.1,
+			&exported_bytes,
+			&vault.nonce,
+		))
+		.unwrap(),
+		"yaml_enc" => serde_yaml::from_slice(&vaultist::decrypt_bytes(
+			&key.1,
+			&exported_bytes,
+			&vault.nonce,
+		))
+		.unwrap(),
+		"bin_enc" => bincode::deserialize(&vaultist::decrypt_bytes(
+			&key.1,
+			&exported_bytes,
+			&vault.nonce,
+		))
+		.unwrap(),
+		_ => panic!("❌ Invalid export format."),
+	};
+	let exported_items_len = exported_items.len();
+
+	let index = Index::open(MmapDirectory::open(path_buf.clone()).unwrap()).unwrap();
+	let reader = index.reader().unwrap();
+	let schema = index.schema();
+	let name = schema.get_field("title").unwrap();
+	let id = schema.get_field("id").unwrap();
+	let last_modified = schema.get_field("last_modified").unwrap();
+	let mut index_writer = index.writer(100_000_000).unwrap();
+
+	for mut item in exported_items {
+		vault.encrypt_secret(&key.1, &mut item);
+
+		index_writer
+			.add_document(doc!(
+				name => item.entry.clone().name,
+				id => item.entry.id.to_string(),
+				last_modified => item.entry.last_modified.to_rfc2822(),
+			))
+			.unwrap();
+	}
+
+	index_writer.commit().unwrap();
+	reader.reload().unwrap();
+	write_file(
+		path_buf.join(".vaultist-vault"),
+		&bincode::serialize(&vault.clone()).unwrap(),
+	);
+
+	// Show how long it took to perform operation
+	timer.stop();
+	writeln!(
+		buf_out,
+		"\n⏰ Imported {} secret(s) from exported vault in {:.3} seconds.",
+		exported_items_len,
 		timer.elapsed_s()
 	)
 	.unwrap();
