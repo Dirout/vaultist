@@ -12,7 +12,6 @@
 	along with Vaultist.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#![cfg_attr(feature = "dox", feature(doc_cfg))]
 #![allow(clippy::needless_doctest_main)]
 #![doc(
 	html_logo_url = "https://github.com/Dirout/vaultist/raw/master/branding/app_icon.png",
