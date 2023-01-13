@@ -74,7 +74,7 @@ rpassword = "7.2.0"
 serde = "1.0.152"
 serde_json = { version = "1.0.91", features = ["std"] }
 serde_yaml = "0.9.16"
-tantivy = { version = "0.19.0", features = ["mmap", "lz4-compression"] }
+tantivy = { version = "0.19.1", features = ["mmap", "lz4-compression"] }
 ticky = { git = "https://github.com/Dirout/ticky.git" }
 url = { version = "2.3.1", features = ["serde"] }
 uuid = { version = "1.2.2", features = ["serde", "fast-rng", "v7", "macro-diagnostics"] }
