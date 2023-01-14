@@ -56,7 +56,7 @@ clap = { version = "4.0.32", features = ["cargo", "suggestions", "color", "wrap_
 convert_case = "0.6.0"
 csv = "1.1.6"
 derive_more = { version = "0.99.17", features = ["default", "convert_case", "generate-parsing-rs", "testing-helpers", "nightly", "peg", "rustc_version" ] }
-dialoguer = { version = "0.10.2", features = ["editor", "password", "fuzzy-select"] }
+dialoguer = { version = "0.10.3", features = ["editor", "password", "fuzzy-select"] }
 edit = "0.1.4"
 generic-array = { version = "0.14.6", features = ["serde"] }
 itertools = "0.10.5"
