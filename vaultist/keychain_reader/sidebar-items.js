@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["get_secrets_from_keychain","Gets a list of secrets from an exported iCloud Keychain vault."]],"struct":[["KeychainRecord","A record in an iCloud Keychain vault"]]};

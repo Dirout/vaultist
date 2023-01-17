@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["get_secrets_from_chrome","Gets a list of secrets from an exported Google Chrome vault."]],"struct":[["ChromeRecord","A record in a Google Chrome vault"]]};
