@@ -29,16 +29,13 @@ use argon2::{PasswordHash, PasswordVerifier};
 use blake2::digest::Update;
 use blake2::digest::VariableOutput;
 use blake2::Blake2bVar;
-use clap::{arg, crate_version, value_parser, ArgMatches, Command};
+use clap::{arg, crate_version, value_parser, Command};
 use dialoguer::console::Term;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Editor;
 use dialoguer::{FuzzySelect, Input};
-use itertools::Itertools;
-use lazy_static::lazy_static;
 use miette::miette;
 use mimalloc::MiMalloc;
-use passwords::{analyzer, scorer, PasswordGenerator};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -53,67 +50,18 @@ use tantivy::{doc, DocAddress, Index, Score};
 use ticky::Stopwatch;
 use uuid::Uuid;
 use yansi::Paint;
-use zxcvbn::zxcvbn;
+
+cfg_if::cfg_if! {
+	if #[cfg(any(feature = "password_generator"))] {
+		use itertools::Itertools;
+		use passwords::{analyzer, scorer, PasswordGenerator};
+		use zxcvbn::zxcvbn;
+	}
+}
 
 #[global_allocator]
 /// The global memory allocator
 static GLOBAL: MiMalloc = MiMalloc;
-
-lazy_static! {
-	/// The command-line interface (CLI) of Vaultist
-	static ref MATCHES: ArgMatches = Command::new("Vaultist")
-	.version(crate_version!())
-	.author("Emil Sayahi")
-	.about("Vaultist is a tool to store your secrets in a vault, able to be opened by one password as the key.")
-	.subcommand(Command::new("show")
-		.about("Shows information regarding the usage and handling of this software")
-		.arg(arg!(-w --warranty "Prints warranty information"))
-		.arg(arg!(-c --conditions "Prints conditions information")))
-	.subcommand(Command::new("new").about("Create a new vault using a user-supplied password.")
-		.arg(arg!(PATH: "Where to store the vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("add").about("Adds a new item to a vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("see").about("View an item in the vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("change").about("Modify an item in the vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("remove").about("Removes an item in the vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("deduplicate").about("Removes all duplicate entries in the vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(-n --ignore_names "Whether or not to ignore common names in addition to common contents when deduplicating").required(false).value_parser(value_parser!(bool))))
-	.subcommand(Command::new("generate").about("Generates at least one password")
-		.arg(arg!(count: "The number of passwords to generate").required(false).default_value("1").allow_negative_numbers(false).value_parser(value_parser!(usize)))
-		.arg(arg!(length: "The length of the generated passwords").required(false).default_value("8").allow_negative_numbers(false).value_parser(value_parser!(usize)))
-		.arg(arg!(-n --numbers "Passwords are allowed to, or must if `strict` is true, contain at least one number").required(false).value_parser(value_parser!(bool)))
-		.arg(arg!(-o --lowercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter").required(false).value_parser(value_parser!(bool)))
-		.arg(arg!(-u --uppercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter").required(false).value_parser(value_parser!(bool)))
-		.arg(arg!(-m --symbols "Passwords are allowed to, or must if `strict` is true, contain at least one special character").required(false).value_parser(value_parser!(bool)))
-		.arg(arg!(-s --spaces "Passwords are allowed to, or must if `strict` is true, contain at least one space").required(false).value_parser(value_parser!(bool)))
-		.arg(arg!(-e --exclude_similar_characters "Whether or not to exclude similar looking ASCII characters (iI1loO0\"'`|)").required(false).value_parser(value_parser!(bool)))
-		.arg(arg!(-t --strict "Whether or not the password rules are strictly followed for each generated password").required(false).value_parser(value_parser!(bool))))
-	.subcommand(Command::new("analyse").about("Analyses a password")
-		.arg(arg!(password: "The password to be analysed").required(false).value_parser(value_parser!(String))))
-	.subcommand(Command::new("import_bitwarden").about("Import items from a Bitwarden vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(BITWARDEN_EXPORT_PATH: "Path to an exported Bitwarden vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("import_firefox").about("Import items from a Firefox vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(FIREFOX_EXPORT_PATH: "Path to an exported Firefox vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("import_chrome").about("Import items from a Google Chrome vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(CHROME_EXPORT_PATH: "Path to an exported Google Chrome vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("import_keychain").about("Import items from an iCloud Keychain vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(KEYCHAIN_EXPORT_PATH: "Path to an exported iCloud Keychain vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.subcommand(Command::new("export").about("Export all items from a vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(export_format: "Format to export items in").required(true).value_parser(value_parser!(String))))
-	.subcommand(Command::new("import").about("Import all items from an exported vault")
-		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
-		.arg(arg!(EXPORT_PATH: "Path to an exported vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
-	.get_matches_from(wild::args());
-}
 
 /// The main function of Vaultist's CLI
 fn main() {
@@ -132,7 +80,6 @@ fn main() {
 				e.location().unwrap().line(),
 				e.location().unwrap().column()
 			)
-			.to_string()
 		);
 	}));
 	// miette::set_hook(Box::new(|_| {
@@ -160,7 +107,81 @@ fn main() {
 	)
 	.unwrap();
 
-	match MATCHES.subcommand() {
+	let mut cli = Command::new("Vaultist")
+	.version(crate_version!())
+	.author("Emil Sayahi")
+	.about("Vaultist is a tool to store your secrets in a vault, able to be opened by one password as the key.")
+	.subcommand(Command::new("show")
+		.about("Shows information regarding the usage and handling of this software")
+		.arg(arg!(-w --warranty "Prints warranty information"))
+		.arg(arg!(-c --conditions "Prints conditions information")))
+	.subcommand(Command::new("new").about("Create a new vault using a user-supplied password.")
+		.arg(arg!(PATH: "Where to store the vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("add").about("Adds a new item to a vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("see").about("View an item in the vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("change").about("Modify an item in the vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("remove").about("Removes an item in the vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))))
+	.subcommand(Command::new("deduplicate").about("Removes all duplicate entries in the vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(-n --ignore_names "Whether or not to ignore common names in addition to common contents when deduplicating").required(false).value_parser(value_parser!(bool))))
+	.subcommand(Command::new("export").about("Export all items from a vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(export_format: "Format to export items in").required(true).value_parser(value_parser!(String))))
+	.subcommand(Command::new("import").about("Import all items from an exported vault")
+		.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+		.arg(arg!(EXPORT_PATH: "Path to an exported vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))));
+	cfg_if::cfg_if! {
+		if #[cfg(any(feature = "password_generator"))] {
+			cli = cli.subcommand(Command::new("generate").about("Generates at least one password")
+				.arg(arg!(count: "The number of passwords to generate").required(false).default_value("1").allow_negative_numbers(false).value_parser(value_parser!(usize)))
+				.arg(arg!(length: "The length of the generated passwords").required(false).default_value("8").allow_negative_numbers(false).value_parser(value_parser!(usize)))
+				.arg(arg!(-n --numbers "Passwords are allowed to, or must if `strict` is true, contain at least one number").required(false).value_parser(value_parser!(bool)))
+				.arg(arg!(-o --lowercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one lowercase letter").required(false).value_parser(value_parser!(bool)))
+				.arg(arg!(-u --uppercase_letters "Passwords are allowed to, or must if `strict` is true, contain at least one uppercase letter").required(false).value_parser(value_parser!(bool)))
+				.arg(arg!(-m --symbols "Passwords are allowed to, or must if `strict` is true, contain at least one special character").required(false).value_parser(value_parser!(bool)))
+				.arg(arg!(-s --spaces "Passwords are allowed to, or must if `strict` is true, contain at least one space").required(false).value_parser(value_parser!(bool)))
+				.arg(arg!(-e --exclude_similar_characters "Whether or not to exclude similar looking ASCII characters (iI1loO0\"'`|)").required(false).value_parser(value_parser!(bool)))
+				.arg(arg!(-t --strict "Whether or not the password rules are strictly followed for each generated password").required(false).value_parser(value_parser!(bool))))
+			.subcommand(Command::new("analyse").about("Analyses a password")
+				.arg(arg!(password: "The password to be analysed").required(false).value_parser(value_parser!(String))))
+		}
+	}
+	cfg_if::cfg_if! {
+		if #[cfg(any(feature = "bitwarden_reader"))] {
+			cli = cli.subcommand(Command::new("import_bitwarden").about("Import items from a Bitwarden vault")
+				.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+				.arg(arg!(BITWARDEN_EXPORT_PATH: "Path to an exported Bitwarden vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))));
+		}
+	}
+	cfg_if::cfg_if! {
+		if #[cfg(any(feature = "firefox_reader"))] {
+			cli = cli.subcommand(Command::new("import_firefox").about("Import items from a Firefox vault")
+				.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+				.arg(arg!(FIREFOX_EXPORT_PATH: "Path to an exported Firefox vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))));
+		}
+	}
+	cfg_if::cfg_if! {
+		if #[cfg(any(feature = "chrome_reader"))] {
+			cli = cli.subcommand(Command::new("import_chrome").about("Import items from a Google Chrome vault")
+				.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+				.arg(arg!(CHROME_EXPORT_PATH: "Path to an exported Google Chrome vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))));
+		}
+	}
+	cfg_if::cfg_if! {
+		if #[cfg(any(feature = "keychain_reader"))] {
+			cli = cli.subcommand(Command::new("import_keychain").about("Import items from an iCloud Keychain vault")
+				.arg(arg!(PATH: "Path to a vault in the filesystem").required(true).value_parser(value_parser!(PathBuf)))
+				.arg(arg!(KEYCHAIN_EXPORT_PATH: "Path to an exported iCloud Keychain vault in the filesystem").required(true).value_parser(value_parser!(PathBuf))));
+		}
+	}
+
+	let matches = cli.get_matches_from(wild::args());
+
+	match matches.subcommand() {
 		Some(("show", show_matches)) => {
 			show(show_matches);
 		}
@@ -183,22 +204,60 @@ fn main() {
 			deduplicate_items(deduplicate_matches);
 		}
 		Some(("generate", generate_matches)) => {
-			generate_passwords(generate_matches);
+			cfg_if::cfg_if! {
+				if #[cfg(any(feature = "password_generator"))] {
+					generate_passwords(generate_matches);
+				} else {
+					panic!("❌ This feature is not available in this build of Vaultist.");
+				}
+			}
 		}
 		Some(("analyse", analyse_matches)) => {
-			analyse_password(analyse_matches);
+			cfg_if::cfg_if! {
+					if #[cfg(any(feature = "password_generator"))] {
+						analyse_password(analyse_matches);
+					} else {
+						panic!("❌ This feature is not available in this build of Vaultist.");
+					}
+
+			}
 		}
+
 		Some(("import_bitwarden", import_bitwarden_matches)) => {
-			import_bitwarden(import_bitwarden_matches);
+			cfg_if::cfg_if! {
+				if #[cfg(any(feature = "bitwarden_reader"))] {
+					import_bitwarden(import_bitwarden_matches);
+				} else {
+					panic!("❌ This feature is not available in this build of Vaultist.");
+				}
+			}
 		}
 		Some(("import_firefox", import_firefox_matches)) => {
-			import_firefox(import_firefox_matches);
+			cfg_if::cfg_if! {
+				if #[cfg(any(feature = "firefox_reader"))] {
+					import_firefox(import_firefox_matches);
+				} else {
+					panic!("❌ This feature is not available in this build of Vaultist.");
+				}
+			}
 		}
 		Some(("import_chrome", import_chrome_matches)) => {
-			import_chrome(import_chrome_matches);
+			cfg_if::cfg_if! {
+				if #[cfg(any(feature = "chrome_reader"))] {
+					import_chrome(import_chrome_matches);
+				} else {
+					panic!("❌ This feature is not available in this build of Vaultist.");
+				}
+			}
 		}
 		Some(("import_keychain", import_keychain_matches)) => {
-			import_keychain(import_keychain_matches);
+			cfg_if::cfg_if! {
+				if #[cfg(any(feature = "keychain_reader"))] {
+					import_keychain(import_keychain_matches);
+				} else {
+					panic!("❌ This feature is not available in this build of Vaultist.");
+				}
+			}
 		}
 		Some(("export", export_matches)) => {
 			export(export_matches);
@@ -243,8 +302,13 @@ fn new_vault(matches: &clap::ArgMatches) {
 		init_attempt_password == confirm_attempt_password,
 		"❌ Password could not be confirmed."
 	);
-	let password_feedback = vaultist::get_password_feedback(init_attempt_password);
+	cfg_if::cfg_if! {
+		if #[cfg(any(feature = "password_generator"))] {
+			let password_feedback =
+		vaultist::password_generator::get_password_feedback(init_attempt_password);
 	assert!(password_feedback.0, "{}", password_feedback.1);
+		}
+	}
 
 	let mut timer = Stopwatch::start_new(); // Start the stopwatch
 	let mut new_vault = vaultist::Vault::new(confirm_attempt_password.clone()); // Create the vault
@@ -486,13 +550,7 @@ fn see_item(matches: &clap::ArgMatches) {
 	let deserialised_items_clone = deserialised_items;
 	let selected_item = deserialised_items_clone
 		.iter()
-		.filter_map(|val| {
-			if val.entry.id == *result_options.values().nth(selection).unwrap() {
-				Some(val)
-			} else {
-				None
-			}
-		})
+		.filter(|&val| val.entry.id == *result_options.values().nth(selection).unwrap())
 		.last()
 		.unwrap();
 
@@ -610,13 +668,7 @@ fn change_item(matches: &clap::ArgMatches) {
 	let copy_of_items = deserialised_items;
 	let selected_item = copy_of_items
 		.iter()
-		.filter_map(|val| {
-			if val.entry.id == *result_options.values().nth(selection).unwrap() {
-				Some(val)
-			} else {
-				None
-			}
-		})
+		.filter(|&val| val.entry.id == *result_options.values().nth(selection).unwrap())
 		.last()
 		.unwrap();
 
@@ -792,13 +844,7 @@ fn remove_item(matches: &clap::ArgMatches) {
 	let copy_of_items = deserialised_items;
 	let selected_item = copy_of_items
 		.iter()
-		.filter_map(|val| {
-			if val.entry.id == *result_options.values().nth(selection).unwrap() {
-				Some(val)
-			} else {
-				None
-			}
-		})
+		.filter(|&val| val.entry.id == *result_options.values().nth(selection).unwrap())
 		.last()
 		.unwrap();
 
@@ -927,6 +973,7 @@ fn deduplicate_items(matches: &clap::ArgMatches) {
 /// * `exclude_similar_characters` - Whether or not to exclude similar looking ASCII characters (``iI1loO0"'`|``).
 ///
 /// * `strict` - Whether or not the password rules are strictly followed for each generated password.
+#[cfg(feature = "password_generator")]
 fn generate_passwords(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -995,7 +1042,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 	for password in generations {
 		writeln!(buf_out, "{}", Paint::blue(password).bold()).unwrap();
 	}
-	let xkcd_generations = vaultist::correct_horse_battery_staple(
+	let xkcd_generations = vaultist::password_generator::correct_horse_battery_staple(
 		count - num_generations,
 		length,
 		numbers,
@@ -1024,6 +1071,7 @@ fn generate_passwords(matches: &clap::ArgMatches) {
 /// # Arguments
 ///
 /// * `password` - The password to be analysed.
+#[cfg(feature = "password_generator")]
 fn analyse_password(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -1118,6 +1166,7 @@ fn analyse_password(matches: &clap::ArgMatches) {
 /// * `PATH` - Path to a vault in the filesystem (required)
 ///
 /// * `BITWARDEN_EXPORT_PATH` - Path to a Bitwarden vault in the filesystem (required).
+#[cfg(feature = "bitwarden_reader")]
 fn import_bitwarden(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -1169,7 +1218,8 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 	let last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
-	let bitwarden_secrets = vaultist::get_secrets_from_bitwarden(bitwarden_path_buf).unwrap(); // Grab items from vault exported from Bitwarden
+	let bitwarden_secrets =
+		vaultist::bitwarden_reader::get_secrets_from_bitwarden(bitwarden_path_buf).unwrap(); // Grab items from vault exported from Bitwarden
 	let bitwarden_secrets_len = bitwarden_secrets.len();
 	for mut bitwarden_secret in bitwarden_secrets {
 		vault.encrypt_secret(&key.1, &mut bitwarden_secret);
@@ -1207,6 +1257,7 @@ fn import_bitwarden(matches: &clap::ArgMatches) {
 /// * `PATH` - Path to a vault in the filesystem (required)
 ///
 /// * `FIREFOX_EXPORT_PATH` - Path to a Firefox vault in the filesystem (required).
+#[cfg(feature = "firefox_reader")]
 fn import_firefox(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -1258,7 +1309,7 @@ fn import_firefox(matches: &clap::ArgMatches) {
 	let last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
-	let firefox_secrets = vaultist::get_secrets_from_firefox(firefox_path_buf); // Grab items from vault exported from Firefox
+	let firefox_secrets = vaultist::firefox_reader::get_secrets_from_firefox(firefox_path_buf); // Grab items from vault exported from Firefox
 	let firefox_secrets_len = firefox_secrets.len();
 	for mut firefox_secret in firefox_secrets {
 		vault.encrypt_secret(&key.1, &mut firefox_secret);
@@ -1296,6 +1347,7 @@ fn import_firefox(matches: &clap::ArgMatches) {
 /// * `PATH` - Path to a vault in the filesystem (required)
 ///
 /// * `CHROME_EXPORT_PATH` - Path to a Google Chrome vault in the filesystem (required).
+#[cfg(feature = "chrome_reader")]
 fn import_chrome(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -1347,7 +1399,7 @@ fn import_chrome(matches: &clap::ArgMatches) {
 	let last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
-	let chrome_secrets = vaultist::get_secrets_from_chrome(chrome_path_buf); // Grab items from vault exported from Google Chrome
+	let chrome_secrets = vaultist::chrome_reader::get_secrets_from_chrome(chrome_path_buf); // Grab items from vault exported from Google Chrome
 	let chrome_secrets_len = chrome_secrets.len();
 	for mut chrome_secret in chrome_secrets {
 		vault.encrypt_secret(&key.1, &mut chrome_secret);
@@ -1385,6 +1437,7 @@ fn import_chrome(matches: &clap::ArgMatches) {
 /// * `PATH` - Path to a vault in the filesystem (required)
 ///
 /// * `KEYCHAIN_EXPORT_PATH` - Path to an iCloud Keychain vault in the filesystem (required).
+#[cfg(feature = "keychain_reader")]
 fn import_keychain(matches: &clap::ArgMatches) {
 	let stdout = std::io::stdout();
 	let stdout_lock = stdout.lock();
@@ -1436,7 +1489,7 @@ fn import_keychain(matches: &clap::ArgMatches) {
 	let last_modified = schema.get_field("last_modified").unwrap();
 	let mut index_writer = index.writer(100_000_000).unwrap();
 
-	let keychain_secrets = vaultist::get_secrets_from_keychain(keychain_path_buf); // Grab items from vault exported from iCloud Keychain
+	let keychain_secrets = vaultist::keychain_reader::get_secrets_from_keychain(keychain_path_buf); // Grab items from vault exported from iCloud Keychain
 	let keychain_secrets_len = keychain_secrets.len();
 	for mut keychain_secret in keychain_secrets {
 		vault.encrypt_secret(&key.1, &mut keychain_secret);

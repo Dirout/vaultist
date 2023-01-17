@@ -43,46 +43,62 @@ crate-type=["rlib", "cdylib", "staticlib"]
 name = "vaultist"
 path = "src/main.rs"
 doc = true
+required-features = ["bin", "cli"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-argon2 = "0.4.1"
-bincode = "1.3.3"
-blake2 = "0.10.6"
-chacha20poly1305 = { version = "0.10.1", features = ["stream"] }
-chrono = { version = "0.4.23", features = ["unstable-locales", "serde"] }
-clap = { version = "4.1.1", features = ["cargo", "suggestions", "color", "wrap_help", "unicode"] }
-convert_case = "0.6.0"
-csv = "1.1.6"
-derive_more = { version = "0.99.17", features = ["default", "convert_case", "generate-parsing-rs", "testing-helpers", "nightly", "peg", "rustc_version" ] }
-dialoguer = { version = "0.10.3", features = ["editor", "password", "fuzzy-select"] }
-edit = "0.1.4"
-generic-array = { version = "0.14.6", features = ["serde"] }
-itertools = "0.10.5"
-lazy_static = "1.4.0"
-memorable-wordlist = "0.1.7"
-miette = { version = "5.5.0", features = ["fancy"] }
-mimalloc = { version = "0.1.34", default-features = false }
-notify = "5.0.0"
-password-hash = "0.4.2"
-passwords = { version = "3.1.12", features = ["crypto", "common-password"] }
-path-clean = "0.1.0"
-rand = "0.8.5"
-rand_core = { version = "0.6.4", features = ["std", "serde1"] }
-rpassword = "7.2.0"
-serde = "1.0.152"
-serde_json = { version = "1.0.91", features = ["std"] }
-serde_yaml = "0.9.16"
-tantivy = { version = "0.19.1", features = ["mmap", "lz4-compression"] }
-ticky = { git = "https://github.com/Dirout/ticky.git" }
-url = { version = "2.3.1", features = ["serde"] }
-uuid = { version = "1.2.2", features = ["serde", "fast-rng", "v7", "macro-diagnostics"] }
-vector-map = "1.0.1"
-wild = "2.1.0"
-yansi = "0.5.1"
-zeroize = { version = "1.5.7", features = ["alloc", "derive"] }
-zxcvbn = { version = "2.2.1", features = ["builder", "ser"] }
+argon2 = { version = "0.4.1", features = ["alloc", "password-hash", "zeroize"], optional = true, default-features = false }
+bincode = { version = "1.3.3", optional = true, default-features = false }
+blake2 = { version = "0.10.6", optional = true, default-features = false }
+cfg-if = { version = "1.0.0", optional = true, default-features = false }
+chacha20poly1305 = { version = "0.10.1", features = ["alloc", "getrandom", "stream"], optional = true, default-features = false }
+chrono = { version = "0.4.23", features = ["clock", "serde"], optional = true, default-features = false }
+clap = { version = "4.1.1", features = ["std", "cargo", "suggestions", "color", "wrap_help", "unicode"], optional = true, default-features = false }
+convert_case = { version = "0.6.0", optional = true, default-features = false }
+csv = { version = "1.1.6", optional = true, default-features = false }
+derive_more = { version = "0.99.17", features = ["constructor", "from", "into", "mul"], optional = true, default-features = false }
+dialoguer = { version = "0.10.3", features = ["editor", "password", "fuzzy-select"], optional = true, default-features = false }
+dioxus = { version = "0.3.1", optional = true, default-features = false }
+generic-array = { version = "0.14.6", features = ["serde"], optional = true, default-features = false }
+itertools = { version = "0.10.5", optional = true, default-features = false }
+lazy_static = { version = "1.4.0", optional = true, default-features = false }
+memorable-wordlist = { version = "0.1.7", optional = true, default-features = false }
+miette = { version = "5.5.0", features = ["fancy"], optional = true, default-features = false }
+mimalloc = { version = "0.1.34", default-features = false, optional = true }
+password-hash = { version = "0.4.2", optional = true, default-features = false }
+passwords = { version = "3.1.12", features = ["common-password"], optional = true, default-features = false }
+path-clean = { version = "0.1.0", optional = true, default-features = false }
+rand = { version = "0.8.5", optional = true, default-features = false }
+rand_core = { version = "0.6.4", features = ["serde1"], optional = true, default-features = false }
+rpassword = { version = "7.2.0", optional = true, default-features = false }
+serde = { version = "1.0.152", optional = true, default-features = false }
+serde_json = { version = "1.0.91", features = ["std"], optional = true, default-features = false }
+serde_yaml = { version = "0.9.16", optional = true, default-features = false }
+tantivy = { version = "0.19.1", features = ["mmap"], optional = true, default-features = false }
+ticky = { git = "https://github.com/Dirout/ticky.git", features = ["stdtime"], optional = true, default-features = false }
+url = { version = "2.3.1", optional = true, default-features = false }
+uuid = { version = "1.2.2", features = ["std", "v7", "serde"], optional = true, default-features = false }
+wild = { version = "2.1.0", optional = true, default-features = false }
+yansi = { version = "0.5.1", optional = true, default-features = false }
+zeroize = { version = "1.5.7", features = ["derive"], optional = true, default-features = false }
+zxcvbn = { version = "2.2.1", optional = true, default-features = false }
+
+[features]
+default = ["std", "dep:argon2", "dep:bincode", "dep:chacha20poly1305", "dep:chrono", "dep:derive_more", "dep:cfg-if", "dep:generic-array", "dep:miette", "dep:rand_core", "dep:serde", "dep:uuid", "dep:zeroize"]
+full-lib = ["default", "password_generator", "readers"]
+full-bin = ["full-lib", "cli", "gui"]
+std = []
+bin = ["default", "uuid?/fast-rng", "dep:blake2", "dep:serde_yaml", "dep:serde_json", "dep:path-clean", "dep:tantivy", "dep:mimalloc"]
+gui = ["bin", "dep:dioxus"]
+cli = ["bin", "dep:clap", "dep:dialoguer", "dep:rpassword", "dep:ticky", "dep:wild", "dep:yansi"]
+password_generator = ["default", "dep:convert_case", "dep:derive_more", "dep:itertools", "dep:lazy_static", "dep:memorable-wordlist", "dep:passwords", "dep:rand", "dep:serde", "dep:yansi", "dep:zxcvbn"]
+readers = ["bitwarden_reader", "firefox_reader", "chrome_reader", "keychain_reader"]
+reader-deps = ["default", "dep:csv", "dep:blake2","dep:derive_more", "dep:serde", "dep:uuid"]
+bitwarden_reader = ["reader-deps", "dep:serde_json"]
+firefox_reader = ["reader-deps", "dep:chrono", "dep:url"]
+chrome_reader = ["reader-deps", "dep:url"]
+keychain_reader = ["reader-deps"]
 
 [profile.release]
 codegen-units = 1
