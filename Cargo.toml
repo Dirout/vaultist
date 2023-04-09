@@ -58,14 +58,14 @@ clap = { version = "4.2.1", features = ["std", "cargo", "suggestions", "color", 
 convert_case = { version = "0.6.0", optional = true, default-features = false }
 csv = { version = "1.2.1", optional = true, default-features = false }
 derive_more = { version = "0.99.17", features = ["constructor", "from", "into", "mul"], optional = true, default-features = false }
-dialoguer = { version = "0.10.3", features = ["editor", "password", "fuzzy-select"], optional = true, default-features = false }
+dialoguer = { version = "0.10.4", features = ["editor", "password", "fuzzy-select"], optional = true, default-features = false }
 dioxus = { version = "0.3.2", optional = true, default-features = false }
 generic-array = { version = "0.14.7", features = ["serde"], optional = true, default-features = false }
 itertools = { version = "0.10.5", optional = true, default-features = false }
 lazy_static = { version = "1.4.0", optional = true, default-features = false }
 memorable-wordlist = { version = "0.1.7", optional = true, default-features = false }
 miette = { version = "5.7.0", features = ["fancy"], optional = true, default-features = false }
-mimalloc = { version = "0.1.35", default-features = false, optional = true }
+mimalloc = { version = "0.1.36", default-features = false, optional = true }
 password-hash = { version = "0.4.2", optional = true, default-features = false }
 passwords = { version = "3.1.12", features = ["common-password"], optional = true, default-features = false }
 path-clean = { version = "0.1.0", optional = true, default-features = false }
@@ -74,7 +74,7 @@ rand_core = { version = "0.6.4", features = ["serde1"], optional = true, default
 rpassword = { version = "7.2.0", optional = true, default-features = false }
 serde = { version = "1.0.159", optional = true, default-features = false }
 serde_json = { version = "1.0.95", features = ["std"], optional = true, default-features = false }
-serde_yaml = { version = "0.9.19", optional = true, default-features = false }
+serde_yaml = { version = "0.9.21", optional = true, default-features = false }
 tantivy = { version = "0.19.2", features = ["mmap"], optional = true, default-features = false }
 ticky = { git = "https://github.com/Dirout/ticky.git", features = ["stdtime"], optional = true, default-features = false }
 url = { version = "2.3.1", optional = true, default-features = false }
