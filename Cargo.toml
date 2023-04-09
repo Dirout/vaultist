@@ -78,7 +78,7 @@ serde_yaml = { version = "0.9.21", optional = true, default-features = false }
 tantivy = { version = "0.19.2", features = ["mmap"], optional = true, default-features = false }
 ticky = { git = "https://github.com/Dirout/ticky.git", features = ["stdtime"], optional = true, default-features = false }
 url = { version = "2.3.1", optional = true, default-features = false }
-uuid = { version = "1.3.0", features = ["std", "v7", "serde"], optional = true, default-features = false }
+uuid = { version = "1.3.1", features = ["std", "v7", "serde"], optional = true, default-features = false }
 wild = { version = "2.1.0", optional = true, default-features = false }
 yansi = { version = "0.5.1", optional = true, default-features = false }
 zeroize = { version = "1.6.0", features = ["derive"], optional = true, default-features = false }
