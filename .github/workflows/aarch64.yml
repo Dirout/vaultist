@@ -39,7 +39,7 @@ jobs:
           libvaultist.so \
           libvaultist.a
       - name: Upload Vaultist build artifacts to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: aarch64-vaultist.gnu+linux
           path: ./target/aarch64-unknown-linux-gnu/release/aarch64-vaultist.gnu+linux.tar

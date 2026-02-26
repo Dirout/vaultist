@@ -45,7 +45,7 @@ jobs:
           command: rpm
           args: build -v
       - name: Upload Vaultist build artifact to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: x86_64-vaultist.rpm.gnu+linux
           path: ./target/release/rpmbuild/RPMS/x86_64/vaultist-*.x86_64.rpm
