@@ -54,7 +54,7 @@ jobs:
           libvaultist.a \
           libvaultist.dll.a
       - name: Upload Vaultist build artifacts to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: x86_64-vaultist.win32
           path: ./target/x86_64-pc-windows-gnu/release/x86_64-vaultist.win32.zip

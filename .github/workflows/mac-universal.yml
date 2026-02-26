@@ -79,19 +79,19 @@ jobs:
           libvaultist.dylib \
           libvaultist.a
       - name: Upload Vaultist AMD64 build artifacts to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: x86_64-vaultist.osx
           path: ./target/x86_64-apple-darwin/release/x86_64-vaultist.osx.tar
           if-no-files-found: error
       - name: Upload Vaultist ARM64 build artifacts to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: aarch64-vaultist.osx
           path: ./target/aarch64-apple-darwin/release/aarch64-vaultist.osx.tar
           if-no-files-found: error
       - name: Upload Vaultist Universal build artifacts to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: universal-vaultist.osx
           path: ./target/universal-vaultist.osx.tar
